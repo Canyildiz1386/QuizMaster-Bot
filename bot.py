@@ -1,96 +1,118 @@
-import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 import requests
-import pymongo
 
-client = pymongo.MongoClient('mongodb://localhost:27017/')
-db = client['quiz_bot']
-users_collection = db['users']
-quizzes_collection = db['quizzes']
+BACKEND_URL = 'http://127.0.0.1:5000'
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    referral_id = context.args[0] if context.args else None
+    data = {'user_id': user_id, 'referral_id': referral_id}
+    response = requests.post(f'{BACKEND_URL}/start', json=data)
+    message = f"🎉 Welcome to the Quiz Bot, {update.effective_user.first_name}! 🧠 You need to verify your phone number before you can take a quiz."
+    await update.message.reply_text(message)
 
-BOT_TOKEN = "7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE"
-VALID_COUNTRY_CODES = ['98', '90']
+async def verify(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    contact_button = KeyboardButton(text="📱 Share your contact", request_contact=True)
+    reply_markup = ReplyKeyboardMarkup([[contact_button]], one_time_keyboard=True)
+    await update.message.reply_text("Please verify your mobile number. ☎️✅", reply_markup=reply_markup)
 
-async def start(update: Update, context):
-    await update.message.reply_text("🎉 Welcome to the Quiz Bot! 📝 Please verify your mobile number by typing /verify <mobile_number>.")
-
-async def verify(update: Update, context):
-    try:
-        print(context.args[0])
-        mobile_number = context.args[0]
-        country_code = mobile_number[:2]
-        if country_code in VALID_COUNTRY_CODES:
-            telegram_id = update.message.from_user.id
-            users_collection.update_one(
-                {"telegram_id": telegram_id},
-                {"$set": {"mobile_number": mobile_number, "country_code": country_code}},
-                upsert=True
-            )
-            await update.message.reply_text(f"✅ Mobile number {mobile_number} verified successfully! 🎊")
-        else:
-            await update.message.reply_text("⚠️ Sorry, only users from Iran 🇮🇷 or Turkey 🇹🇷 can participate.")
-    except (IndexError, ValueError):
-        await update.message.reply_text("❗ Please provide a valid mobile number. Usage: /verify <mobile_number> 📱")
-
-async def participate(update: Update, context):
-    telegram_id = update.message.from_user.id
-    user = users_collection.find_one({"telegram_id": telegram_id})
-    
-    if user and "mobile_number" in user:
-        quiz = quizzes_collection.find_one()
-        if quiz:
-            await update.message.reply_text(f"🎯 Quiz: {quiz['name']}\n📝 Description: {quiz['description']}")
-            question = quiz['questions'][0]
-            keyboard = [[InlineKeyboardButton(option, callback_data=option) for option in question['options']]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(f"🧐 {question['text']}", reply_markup=reply_markup)
-            context.user_data['current_quiz'] = quiz['_id']
-            context.user_data['current_question_index'] = 0
-        else:
-            await update.message.reply_text("🚫 No quiz available at the moment. Please check back later! ⏳")
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    contact = update.message.contact
+    phone = contact.phone_number
+    user_id = update.effective_user.id
+    data = {'user_id': user_id, 'phone': phone}
+    response = requests.post(f'{BACKEND_URL}/register', json=data)
+    if response.status_code == 200:
+        await update.message.reply_text("Your phone number has been verified! 🎉 You can now participate in quizzes 🧠.")
     else:
-        await update.message.reply_text("📲 You need to verify your mobile number first. Use /verify <mobile_number> 📱")
+        await update.message.reply_text("Invalid phone number 🚫. Only numbers from Iran 🇮🇷 and Türkiye 🇹🇷 are allowed.")
 
-async def button(update: Update, context):
-    query = update.callback_query
-    await query.answer()
-    selected_option = query.data
-    telegram_id = query.from_user.id
-    quiz_id = context.user_data.get('current_quiz')
-    question_index = context.user_data.get('current_question_index', 0)
+async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    response = requests.get(f'{BACKEND_URL}/get_quiz/{user_id}')
+    
+    if response.status_code == 200:
+        quiz_data = response.json()
 
-    if quiz_id is not None:
-        quiz = quizzes_collection.find_one({"_id": quiz_id})
-        question = quiz['questions'][question_index]
-        correct_answer = question['correct_answer']
+        # Check if the user has completed all quizzes
+        if 'message' in quiz_data and quiz_data['message'] == 'You have completed all available quizzes!':
+            await update.message.reply_text("🎉 You have completed all available quizzes! 🏆")
+            return
+
+        # Check if the current quiz is completed
+        if quiz_data.get('quiz_completed', False):
+            if update.message:
+                await update.message.reply_text("You've already completed this quiz 📝. Stay tuned for new quizzes 🎯!")
+            elif update.callback_query:
+                await update.callback_query.message.reply_text("You've already completed this quiz 📝. Stay tuned for new quizzes 🎯!")
+            return
+
+        # Display the quiz question and options
+        current_question = quiz_data['current_question']
+        options = quiz_data['options']
+        quiz_id = quiz_data['quiz_id']
+        keyboard = [
+            [InlineKeyboardButton(option, callback_data=f"{quiz_id}:{current_question}:{i}") for i, option in enumerate(options)]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
-        if selected_option == correct_answer:
-            await query.edit_message_text(f"🎉 Correct! ✅ You selected: {selected_option}")
-            users_collection.update_one({"telegram_id": telegram_id}, {"$inc": {"coins": 10}})
-        else:
-            await query.edit_message_text(f"❌ Wrong! The correct answer was: {correct_answer}")
+        if update.message:
+            await update.message.reply_text(f"🧠 {quiz_data['question']} 🤔", reply_markup=reply_markup)
+        elif update.callback_query:
+            await update.callback_query.message.reply_text(f"🧠 {quiz_data['question']} 🤔", reply_markup=reply_markup)
+    else:
+        if update.message:
+            await update.message.reply_text("No quiz available right now 🙁. Please try again later 🔄.")
+        elif update.callback_query:
+            await update.callback_query.message.reply_text("No quiz available right now 🙁. Please try again later 🔄.")
 
-        next_question_index = question_index + 1
-        if next_question_index < len(quiz['questions']):
-            next_question = quiz['questions'][next_question_index]
-            keyboard = [[InlineKeyboardButton(option, callback_data=option) for option in next_question['options']]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.message.reply_text(f"🤔 {next_question['text']}", reply_markup=reply_markup)
-            context.user_data['current_question_index'] = next_question_index
-        else:
-            await query.message.reply_text("🏁 Quiz completed! 🎉 Thanks for participating. 🎊")
 
-def main():
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("verify", verify))
-    application.add_handler(CommandHandler("participate", participate))
-    application.add_handler(CallbackQueryHandler(button))
-    application.run_polling()
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = update.effective_user.id
+    quiz_id, question_number, answer = query.data.split(":")
+    response = requests.post(f'{BACKEND_URL}/submit_answer', json={'user_id': user_id, 'quiz_id': quiz_id, 'question_number': question_number, 'answer': answer})
+    
+    if response.status_code == 200:
+        result = response.json()
+        if result['correct']:
+            message = f"🎉 Correct answer! Great job! 🏆 You earned {result['reward_coins']} coins! 🪙"
+        else:
+            message = "❌ Incorrect answer! Better luck next time 🤔."
+
+        await query.edit_message_text(text=message)
+
+        if result['quiz_completed']:
+            await query.message.reply_text("🎉 You've completed the quiz! Stay tuned for more quizzes!")
+        else:
+            await quiz(update, context)
+    else:
+        await query.edit_message_text(text="Error submitting answer 😔. Please try again 🔄.")
+
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    response = requests.get(f'{BACKEND_URL}/leaderboard')
+    if response.status_code == 200:
+        leaderboard_data = response.json()
+        leaderboard_text = "🏆 Leaderboard 🏆:\n"
+        for entry in leaderboard_data:
+            leaderboard_text += f"🔹 User {entry['user_id']} ({entry['phone']}): {entry['correct_answers']} correct answers ✅, {entry['coins']} coins 🪙\n"
+        await update.message.reply_text(leaderboard_text)
+    else:
+        await update.message.reply_text("Failed to retrieve the leaderboard 🚫. Please try again later 🔄.")
+
+async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    referral_message = f"🎉 Invite your friends and earn coins! 🪙 Share this link: https://t.me/GlassButtonCanBot?start={user_id} 📲"
+    await update.message.reply_text(referral_message)
 
 if __name__ == '__main__':
-    main()
+    app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
+    app.add_handler(CommandHandler('start', start))
+    app.add_handler(CommandHandler('verify', verify))
+    app.add_handler(CommandHandler('quiz', quiz))
+    app.add_handler(CommandHandler('leaderboard', leaderboard))
+    app.add_handler(CommandHandler('invite', invite))
+    app.add_handler(CallbackQueryHandler(button))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    app.run_polling()
