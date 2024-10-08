@@ -19,18 +19,56 @@ def quiz_serializer(quiz):
     quiz['_id'] = str(quiz['_id'])
     return quiz
 
+
+@app.route('/api/all_quizzes', methods=['GET'])
+def get_all_quizzes():
+    quizzes = list(quizzes_collection.find())
+    quizzes = [quiz_serializer(quiz) for quiz in quizzes]
+    return jsonify(quizzes), 200
+
+def user_serializer(user):
+    user['_id'] = str(user['_id'])  
+    return user
+
+@app.route('/api/all_users', methods=['GET'])
+def get_all_users():
+    users = list(users_collection.find())  
+    serialized_users = [user_serializer(user) for user in users]  
+    return jsonify(serialized_users), 200 
+
+
+@app.route('/api/user/<user_id>', methods=['PUT'])
+def update_user(user_id):
+    if not is_valid_objectid(user_id):
+        return jsonify({"error": "Invalid user ID"}), 400
+    data = request.json
+    users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {
+        "telegram_id": data['telegram_id'],
+        "phone_number": data['phone_number']
+    }})
+    return jsonify({"message": "User updated successfully"}), 200
+
+
 @app.route('/api/register', methods=['POST'])
 def register_user():
     data = request.json
     if not data.get('telegram_id') or not data.get('phone_number'):
         return jsonify({"error": "Telegram ID and Phone number are required"}), 400
+    
+    phone_number = data['phone_number']
+    
+    if not (phone_number.startswith('+98') or phone_number.startswith('+90')):
+        return jsonify({"error": "Only phone numbers from Iran and Turkey are allowed"}), 403
+    
     user = users_collection.find_one({"telegram_id": data['telegram_id']})
     if user:
         return jsonify({"message": "User already registered"}), 200
-    country = 'Iran' if data['phone_number'].startswith('98') else 'Türkiye' if data['phone_number'].startswith('90') else 'Other'
+
+    country = 'Iran' if phone_number.startswith('+98') else 'Türkiye'
+    
     new_user = {
         "telegram_id": data['telegram_id'],
-        "phone_number": data['phone_number'],
+        "phone_number": phone_number,
         "country": country,
         "coins": 0,
         "score": 0,
@@ -74,13 +112,23 @@ def delete_quiz(quiz_id):
     quizzes_collection.delete_one({"_id": ObjectId(quiz_id)})
     return jsonify({"message": "Quiz deleted successfully"}), 200
 
+
+@app.route('/api/user/<user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    if not ObjectId.is_valid(user_id):
+        return jsonify({"error": "Invalid user ID"}), 400
+    result = users_collection.delete_one({"_id": ObjectId(user_id)})
+    
+    if result.deleted_count == 0:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify({"message": "User deleted successfully"}), 200
+
+
 @app.route('/api/quiz/<quiz_id>', methods=['PUT'])
 def update_quiz(quiz_id):
     if not is_valid_objectid(quiz_id):
-        return jsonify({"error": "Invalid Quiz ID"}), 400
+        return jsonify({"error": "Invalid quiz ID"}), 400
     data = request.json
-    if not data.get('title') or not data.get('questions'):
-        return jsonify({"error": "Title and questions are required"}), 400
     quizzes_collection.update_one({"_id": ObjectId(quiz_id)}, {"$set": {
         "title": data['title'],
         "questions": data['questions']

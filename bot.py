@@ -62,7 +62,7 @@ async def quiz(update: Update, context):
         return
     quizzes = response.json()
     if "error" in quizzes:
-        await update.message.reply_text("❌ Please register first by sharing your contact 📱.")
+        await update.message.reply_text("❌ Please register first by starting the bot 📱.")
         return
     if not quizzes:
         await update.message.reply_text("🎉 You have answered all available quizzes! 🏆")
@@ -90,7 +90,7 @@ async def select_quiz(update: Update, context):
     except requests.exceptions.JSONDecodeError:
         await query.message.reply_text("❌ Error: Invalid response format (expected JSON) ⚠️.")
         return
-    quiz_questions = quiz['questions']['questions']
+    quiz_questions = quiz['questions']
     user_response = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress")
     user_data = user_response.json()
     if user_data['current_quiz'] != quiz_id:
@@ -126,7 +126,7 @@ async def handle_answer(update: Update, context):
     except requests.exceptions.JSONDecodeError:
         await query.message.reply_text("❌ Error: Invalid response format ⚠️.")
         return
-    quiz_questions = quiz['questions']['questions']
+    quiz_questions = quiz['questions']
     current_question = user_data['current_question']
     if current_question >= len(quiz_questions):
         await query.edit_message_text("🎉 You have finished the quiz! 🏅")
