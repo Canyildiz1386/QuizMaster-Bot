@@ -261,7 +261,10 @@
         <button id="createQuizBtn">Create Quiz</button>
         <button id="viewQuizzesBtn">View All Quizzes</button>
         <button id="manageUsersBtn">Manage Users</button>
+        <button id="userStatsBtn">User Statistics</button>
+        <button id="quizStatsBtn">Quiz Statistics</button>
     </nav>
+    
 
     <main>
         <div id="content">
@@ -274,6 +277,96 @@
         document.getElementById('createQuizBtn').addEventListener('click', loadCreateQuizForm);
         document.getElementById('viewQuizzesBtn').addEventListener('click', loadQuizzesTable);
         document.getElementById('manageUsersBtn').addEventListener('click', loadUserManager);
+        document.getElementById('userStatsBtn').addEventListener('click', loadUserStatistics);
+        document.getElementById('quizStatsBtn').addEventListener('click', loadQuizStatistics);
+
+        function loadQuizStatistics() {
+            fetch(`${API_BASE_URL}/statistics/quizzes`)
+                .then(response => response.json())
+                .then(data => {
+                    const content = `
+                        <h2>Quiz Statistics</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Total Quizzes</th>
+                                    <th>Average Questions per Quiz</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${data.total_quizzes}</td>
+                                    <td>${data.avg_questions_per_quiz}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <br>
+                        <h3>Most Popular Quiz:</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Quiz ID</th>
+                                    <th>Times Taken</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${data.most_popular_quiz_id || 'N/A'}</td>
+                                    <td>${data.times_taken || 0}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById('content').innerHTML = content;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+
+        function loadUserStatistics() {
+            fetch(`${API_BASE_URL}/statistics/users`)
+                .then(response => response.json())
+                .then(data => {
+                    const content = `
+                        <h2>User Statistics</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Total Users</th>
+                                    <th>Total Coins</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${data.total_users}</td>
+                                    <td>${data.total_coins}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <br>
+
+                        <h3>Users by Country:</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Country</th>
+                                    <th>Number of Users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.users_by_country.map(country => `
+                                    <tr>
+                                        <td>${country._id}</td>
+                                        <td>${country.count}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    document.getElementById('content').innerHTML = content;
+                })
+                .catch(error => console.error('Error:', error));
+        }
 
         function loadCreateQuizForm() {
             document.getElementById('content').innerHTML = `

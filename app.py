@@ -136,6 +136,48 @@ def update_quiz(quiz_id):
     }})
     return jsonify({"message": "Quiz updated successfully"}), 200
 
+
+@app.route('/api/statistics/quizzes', methods=['GET'])
+def get_quiz_statistics():
+    total_quizzes = quizzes_collection.count_documents({})
+    avg_questions_per_quiz = quizzes_collection.aggregate([
+        {"$project": {"num_questions": {"$size": "$questions"}}},
+        {"$group": {"_id": None, "avg_questions": {"$avg": "$num_questions"}}}
+    ])
+    popular_quiz = users_collection.aggregate([
+        {"$unwind": "$answered_quizzes"},
+        {"$group": {"_id": "$answered_quizzes", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 1}
+    ])
+    popular_quiz_info = next(popular_quiz, None)
+
+    response = {
+        "total_quizzes": total_quizzes,
+        "avg_questions_per_quiz": list(avg_questions_per_quiz)[0]["avg_questions"] if avg_questions_per_quiz else 0,
+        "most_popular_quiz_id": popular_quiz_info['_id'] if popular_quiz_info else None,
+        "times_taken": popular_quiz_info['count'] if popular_quiz_info else 0
+    }
+
+    return jsonify(response), 200
+
+@app.route('/api/statistics/users', methods=['GET'])
+def get_user_statistics():
+    total_users = users_collection.count_documents({})
+    users_by_country = users_collection.aggregate([
+        {"$group": {"_id": "$country", "count": {"$sum": 1}}}
+    ])
+    total_coins = users_collection.aggregate([{"$group": {"_id": None, "total_coins": {"$sum": "$coins"}}}])
+
+    response = {
+        "total_users": total_users,
+        "users_by_country": list(users_by_country),
+        "total_coins": list(total_coins)[0]["total_coins"] if total_coins else 0
+    }
+
+    return jsonify(response), 200
+
+
 @app.route('/api/user/<telegram_id>/progress', methods=['PUT'])
 def update_user_progress(telegram_id):
     data = request.json

@@ -145,7 +145,7 @@ async def handle_answer(update: Update, context):
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/coins", json={"coins": question['reward']})
     else:
         
-        await query.edit_message_text(f"❌ Wrong! The correct answer was: {correct_option} ❓")
+        await query.edit_message_text(f"❌ Wrong! The correct answer was: {options_list[correct_option_int]} ❓")
     new_question_number = current_question + 1
     if new_question_number < len(quiz_questions):
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/progress", json={
