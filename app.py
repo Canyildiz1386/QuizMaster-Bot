@@ -7,6 +7,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+
 client = MongoClient('mongodb://localhost:27017/')
 db = client.quizdb
 users_collection = db.users
@@ -57,14 +58,14 @@ def register_user():
     
     phone_number = data['phone_number']
     
-    if not (phone_number.startswith('+98') or phone_number.startswith('+90')):
+    if not (phone_number.startswith('98') or phone_number.startswith('90')):
         return jsonify({"error": "Only phone numbers from Iran and Turkey are allowed"}), 403
     
     user = users_collection.find_one({"telegram_id": data['telegram_id']})
     if user:
         return jsonify({"message": "User already registered"}), 200
 
-    country = 'Iran' if phone_number.startswith('+98') else 'Türkiye'
+    country = 'Iran' if phone_number.startswith('98') else 'Türkiye'
     
     new_user = {
         "telegram_id": data['telegram_id'],

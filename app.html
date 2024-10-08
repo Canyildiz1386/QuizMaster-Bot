@@ -5,145 +5,250 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Quiz Manager PWA">
     <title>Quiz Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        /* General Styles */
-        body {
-            font-family: 'Arial', sans-serif;
+        :root {
+            --background-color: #121212;
+            --header-bg: #1f1f1f;
+            --nav-bg: #1e1e1e;
+            --card-bg: #1e1e1e;
+            --primary-color: #17a2b8;
+            --primary-hover: #138496;
+            --secondary-color: #ffc107;
+            --secondary-hover: #e0a800;
+            --danger-color: #dc3545;
+            --danger-hover: #c82333;
+            --text-color: #e0e0e0;
+            --border-color: #333;
+            --input-bg: #2c2c2c;
+            --input-border: #444;
+            --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Global Styles */
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            background-color: #1a1a1a;
-            color: #fff;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         header {
-            background-color: #333;
-            color: #fff;
+            background-color: var(--header-bg);
+            padding: 1rem 0;
             text-align: center;
-            padding: 1.5rem 0;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--box-shadow);
         }
 
         header h1 {
-            margin: 0;
-            font-size: 2.5rem;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
         }
 
         nav {
+            background-color: var(--nav-bg);
             display: flex;
             justify-content: center;
-            padding: 1rem 0;
-            background-color: #444;
+            padding: 0.75rem 0;
+            box-shadow: var(--box-shadow);
         }
 
         nav button {
-            background-color: #17a2b8;
+            background-color: var(--primary-color);
             color: #fff;
             border: none;
-            padding: 12px 20px;
-            margin: 0 10px;
-            border-radius: 6px;
+            padding: 0.6rem 1.2rem;
+            margin: 0 0.5rem;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            font-size: 1rem;
+            transition: background-color 0.3s, transform 0.2s;
         }
 
         nav button:hover {
-            background-color: #138496;
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
         }
 
-        /* Content area */
+        main {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
         #content {
-            margin: 20px;
-            padding: 20px;
-            background: #222;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 1200px;
         }
 
-        form, table {
-            width: 100%;
+        h2 {
+            font-family: 'Montserrat', sans-serif;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
             color: #fff;
+        }
+
+        /* Forms */
+        form {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
         }
 
         label {
-            font-weight: bold;
             display: block;
-            margin-top: 10px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
         }
 
-        input[type="text"], input[type="number"] {
-            padding: 10px;
-            margin-top: 5px;
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
             width: 100%;
-            max-width: 500px;
-            border: 1px solid #555;
-            border-radius: 5px;
-            background-color: #333;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        button[type="submit"],
+        #addQuestionBtn {
+            background-color: var(--primary-color);
             color: #fff;
-        }
-
-        button[type="submit"], #addQuestionBtn {
-            background-color: #17a2b8;
-            color: white;
             border: none;
-            padding: 10px 20px;
-            margin: 20px 0;
+            padding: 0.8rem 1.5rem;
+            margin-top: 0.5rem;
             cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: background-color 0.3s, transform 0.2s;
         }
 
-        button[type="submit"]:hover, #addQuestionBtn:hover {
-            background-color: #138496;
+        button[type="submit"]:hover,
+        #addQuestionBtn:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
         }
 
-        /* Table Styles */
+        /* Tables */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 1.5rem;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--box-shadow);
         }
 
-        table th, table td {
-            padding: 12px;
-            border: 1px solid #555;
+        table thead {
+            background-color: var(--header-bg);
+        }
+
+        table th,
+        table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
         }
 
         table th {
-            background-color: #333;
-            text-align: left;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1rem;
+            color: #fff;
         }
 
-        table td {
-            text-align: left;
+        table tbody tr:nth-child(even) {
+            background-color: #1a1a1a;
+        }
+
+        table tbody tr:hover {
+            background-color: #2a2a2a;
         }
 
         .action-btn {
-            padding: 6px 12px;
+            padding: 0.5rem 1rem;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s, transform 0.2s;
+            margin-right: 0.5rem;
         }
 
         .edit-btn {
-            background-color: #ffc107;
-            color: white;
+            background-color: var(--secondary-color);
+            color: #fff;
         }
 
         .edit-btn:hover {
-            background-color: #e0a800;
+            background-color: var(--secondary-hover);
+            transform: translateY(-2px);
         }
 
         .delete-btn {
-            background-color: #dc3545;
-            color: white;
+            background-color: var(--danger-color);
+            color: #fff;
         }
 
         .delete-btn:hover {
-            background-color: #c82333;
+            background-color: var(--danger-hover);
+            transform: translateY(-2px);
         }
 
-        .edit-form {
-            display: none;
+        /* Question Blocks */
+        .question-block {
+            background-color: #1c1c1c;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            box-shadow: var(--box-shadow);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+            }
+
+            nav button {
+                margin: 0.5rem 0;
+                width: 80%;
+            }
+
+            table th,
+            table td {
+                padding: 0.75rem;
+            }
+
+            .action-btn {
+                margin-bottom: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -158,8 +263,9 @@
         <button id="manageUsersBtn">Manage Users</button>
     </nav>
 
-    <main id="content">
-        <!-- Dynamic content will be loaded here -->
+    <main>
+        <div id="content">
+        </div>
     </main>
 
     <script>
@@ -174,26 +280,37 @@
                 <h2>Create New Quiz</h2>
                 <form id="quizForm">
                     <label for="title">Quiz Title:</label>
-                    <input type="text" id="title" name="title" required><br><br>
+                    <input type="text" id="title" name="title" placeholder="Enter quiz title" required>
 
                     <div id="questions-container">
                         <div class="question-block">
-                            <label>Question 1:</label><br>
-                            <input type="text" name="question_text" placeholder="Enter question text" required><br>
+                            <h3>Question 1</h3>
+                            <label>Question Text:</label>
+                            <input type="text" name="question_text" placeholder="Enter question text" required>
+
                             <label>Option 1:</label>
-                            <input type="text" name="option_1" placeholder="Enter option 1" required><br>
+                            <input type="text" name="option_1" placeholder="Enter option 1" required>
+
                             <label>Option 2:</label>
-                            <input type="text" name="option_2" placeholder="Enter option 2" required><br>
+                            <input type="text" name="option_2" placeholder="Enter option 2" required>
+
                             <label>Option 3:</label>
-                            <input type="text" name="option_3" placeholder="Enter option 3" required><br>
+                            <input type="text" name="option_3" placeholder="Enter option 3" required>
+
                             <label>Correct Option:</label>
-                            <input type="text" name="correct_option" placeholder="Enter the correct option" required><br>
+                            <select name="correct_option" required>
+                                <option value="" disabled selected>Select correct option</option>
+                                <option value="option_1">Option 1</option>
+                                <option value="option_2">Option 2</option>
+                                <option value="option_3">Option 3</option>
+                            </select>
+
                             <label>Reward (coins):</label>
-                            <input type="number" name="reward" placeholder="Enter reward" required><br><br>
+                            <input type="number" name="reward" placeholder="Enter reward" min="0" required>
                         </div>
                     </div>
 
-                    <button type="button" id="addQuestionBtn">Add Another Question</button><br><br>
+                    <button type="button" id="addQuestionBtn">Add Another Question</button>
                     <button type="submit">Create Quiz</button>
                 </form>
             `;
@@ -208,18 +325,29 @@
             questionCount++;
             const questionHTML = `
                 <div class="question-block">
-                    <label>Question ${questionCount}:</label><br>
-                    <input type="text" name="question_text" placeholder="Enter question text" required><br>
+                    <h3>Question ${questionCount}</h3>
+                    <label>Question Text:</label>
+                    <input type="text" name="question_text" placeholder="Enter question text" required>
+
                     <label>Option 1:</label>
-                    <input type="text" name="option_1" placeholder="Enter option 1" required><br>
+                    <input type="text" name="option_1" placeholder="Enter option 1" required>
+
                     <label>Option 2:</label>
-                    <input type="text" name="option_2" placeholder="Enter option 2" required><br>
+                    <input type="text" name="option_2" placeholder="Enter option 2" required>
+
                     <label>Option 3:</label>
-                    <input type="text" name="option_3" placeholder="Enter option 3" required><br>
+                    <input type="text" name="option_3" placeholder="Enter option 3" required>
+
                     <label>Correct Option:</label>
-                    <input type="text" name="correct_option" placeholder="Enter the correct option" required><br>
+                    <select name="correct_option" required>
+                        <option value="" disabled selected>Select correct option</option>
+                        <option value="option_1">Option 1</option>
+                        <option value="option_2">Option 2</option>
+                        <option value="option_3">Option 3</option>
+                    </select>
+
                     <label>Reward (coins):</label>
-                    <input type="number" name="reward" placeholder="Enter reward" required><br><br>
+                    <input type="number" name="reward" placeholder="Enter reward" min="0" required>
                 </div>
             `;
             document.getElementById('questions-container').insertAdjacentHTML('beforeend', questionHTML);
@@ -235,7 +363,7 @@
                 const option1 = block.querySelector('input[name="option_1"]').value;
                 const option2 = block.querySelector('input[name="option_2"]').value;
                 const option3 = block.querySelector('input[name="option_3"]').value;
-                const correctOption = block.querySelector('input[name="correct_option"]').value;
+                const correctOption = block.querySelector('select[name="correct_option"]').value;
                 const reward = block.querySelector('input[name="reward"]').value;
 
                 return {
@@ -256,7 +384,7 @@
             .then(response => response.json())
             .then(data => {
                 alert(data.message);
-                loadCreateQuizForm(); // Reload form after submission
+                loadCreateQuizForm(); 
             })
             .catch(error => console.error('Error:', error));
         }
@@ -295,25 +423,37 @@
                     <h2>Edit Quiz</h2>
                     <form id="editQuizForm">
                         <label for="editTitle">Quiz Title:</label>
-                        <input type="text" id="editTitle" value="${quiz.title}" required><br><br>
+                        <input type="text" id="editTitle" value="${quiz.title}" required>
 
                         <div id="editQuestionsContainer">
                 `;
                 quiz.questions.forEach((q, i) => {
                     content += `
                         <div class="question-block">
-                            <label>Question ${i + 1}:</label><br>
-                            <input type="text" name="question_text" value="${q.question}" required><br>
+                            <h3>Question ${i + 1}</h3>
+                            
+                            <label>Question Text:</label>
+                            <input type="text" name="question_text" value="${q.question}" required>
+
                             <label>Option 1:</label>
-                            <input type="text" name="option_1" value="${q.options[0]}" required><br>
+                            <input type="text" name="option_1" value="${q.options[0]}" required>
+
                             <label>Option 2:</label>
-                            <input type="text" name="option_2" value="${q.options[1]}" required><br>
+                            <input type="text" name="option_2" value="${q.options[1]}" required>
+
                             <label>Option 3:</label>
-                            <input type="text" name="option_3" value="${q.options[2]}" required><br>
+                            <input type="text" name="option_3" value="${q.options[2]}" required>
+
                             <label>Correct Option:</label>
-                            <input type="text" name="correct_option" value="${q.correct_option}" required><br>
+                            <select name="correct_option" required>
+                                <option value="" disabled>Select correct option</option>
+                                <option value="option_1" ${q.correct_option === 'option_1' ? 'selected' : ''}>Option 1</option>
+                                <option value="option_2" ${q.correct_option === 'option_2' ? 'selected' : ''}>Option 2</option>
+                                <option value="option_3" ${q.correct_option === 'option_3' ? 'selected' : ''}>Option 3</option>
+                            </select>
+
                             <label>Reward (coins):</label>
-                            <input type="number" name="reward" value="${q.reward}" required><br><br>
+                            <input type="number" name="reward" value="${q.reward}" min="0" required>
                         </div>
                     `;
                 });
@@ -339,8 +479,9 @@
                 const option1 = block.querySelector('input[name="option_1"]').value;
                 const option2 = block.querySelector('input[name="option_2"]').value;
                 const option3 = block.querySelector('input[name="option_3"]').value;
-                const correctOption = block.querySelector('input[name="correct_option"]').value;
+                const correctOption = block.querySelector('select[name="correct_option"]').value;
                 const reward = block.querySelector('input[name="reward"]').value;
+
 
                 return {
                     question: questionText,
@@ -411,10 +552,13 @@
                     <h2>Edit User</h2>
                     <form id="editUserForm">
                         <label for="editTelegramID">Telegram ID:</label>
-                        <input type="text" id="editTelegramID" value="${user.telegram_id}" required><br><br>
+                        <input type="text" id="editTelegramID" value="${user.telegram_id}" required>
 
                         <label for="editPhoneNumber">Phone Number:</label>
-                        <input type="text" id="editPhoneNumber" value="${user.phone_number}" required><br><br>
+                        <input type="text" id="editPhoneNumber" value="${user.phone_number}" required>
+
+                        <label for="editCountry">Country:</label>
+                        <input type="text" id="editCountry" value="${user.country}" required>
 
                         <button type="submit">Update User</button>
                     </form>
@@ -431,13 +575,14 @@
         function updateUser(userId) {
             const telegram_id = document.getElementById('editTelegramID').value;
             const phone_number = document.getElementById('editPhoneNumber').value;
+            const country = document.getElementById('editCountry').value;
 
             fetch(`${API_BASE_URL}/user/${userId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ telegram_id, phone_number })
+                body: JSON.stringify({ telegram_id, phone_number, country })
             })
             .then(response => response.json())
             .then(data => {
@@ -455,10 +600,16 @@
                 .then(response => response.json())
                 .then(data => {
                     alert(data.message);
-                    loadUserManager(); // Refresh the table after deletion
+                    loadUserManager();
                 })
                 .catch(error => console.error('Error:', error));
             }
+        }
+
+        loadView();
+        
+        function loadView() {
+            loadQuizzesTable();
         }
     </script>
 </body>

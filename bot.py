@@ -132,12 +132,19 @@ async def handle_answer(update: Update, context):
         await query.edit_message_text("🎉 You have finished the quiz! 🏅")
         return
     question = quiz_questions[current_question]
+    print(question)
     correct_option = question['correct_option']
     user_answer = query.data
-    if user_answer == correct_option:
+    correct_option_int = str(correct_option).split('_')[1]
+    correct_option_int = int(correct_option_int) - 1
+    options_list = question['options']
+    
+
+    if user_answer == options_list[correct_option_int]:
         await query.edit_message_text(f"🎉 Correct! 🏆")
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/coins", json={"coins": question['reward']})
     else:
+        
         await query.edit_message_text(f"❌ Wrong! The correct answer was: {correct_option} ❓")
     new_question_number = current_question + 1
     if new_question_number < len(quiz_questions):
