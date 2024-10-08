@@ -2,8 +2,10 @@ from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime, timezone
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 client = MongoClient('mongodb://localhost:27017/')
 db = client.quizdb
@@ -16,43 +18,6 @@ def is_valid_objectid(id):
 def quiz_serializer(quiz):
     quiz['_id'] = str(quiz['_id'])
     return quiz
-
-@app.route('/api/quiz', methods=['POST'])
-def create_quiz():
-    data = request.json
-    if not data.get('title') or not data.get('questions'):
-        return jsonify({"error": "Title and questions are required"}), 400
-    quiz = {
-        "title": data['title'],
-        "questions": data['questions'],
-        "created_at": datetime.now(timezone.utc)
-    }
-    quizzes_collection.insert_one(quiz)
-    return jsonify({"message": "Quiz created successfully"}), 201
-
-@app.route('/api/quizzes', methods=['GET'])
-def get_quizzes():
-    telegram_id = request.args.get('telegram_id')
-    user = users_collection.find_one({"telegram_id": telegram_id})
-    
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    answered_quizzes = user.get('answered_quizzes', [])
-    available_quizzes = list(quizzes_collection.find({"_id": {"$nin": [ObjectId(qid) for qid in answered_quizzes]}}))
-    available_quizzes = [quiz_serializer(quiz) for quiz in available_quizzes]
-    
-    return jsonify(available_quizzes), 200
-
-@app.route('/api/quiz/<quiz_id>', methods=['GET'])
-def get_quiz(quiz_id):
-    if not is_valid_objectid(quiz_id):
-        return jsonify({"error": "Invalid Quiz ID"}), 400
-    quiz = quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
-    quiz = quiz_serializer(quiz)
-    return jsonify(quiz), 200
 
 @app.route('/api/register', methods=['POST'])
 def register_user():
@@ -72,10 +37,76 @@ def register_user():
         "current_question": 0,
         "current_quiz": None,
         "answered_quizzes": [],
-        "registered_at": datetime.now(timezone.utc)
+        "registered_at": datetime.now(timezone.utc),
+        "quizzes_today": {}
     }
     users_collection.insert_one(new_user)
     return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/api/quiz', methods=['POST'])
+def create_quiz():
+    data = request.json
+    if not data.get('title') or not data.get('questions'):
+        return jsonify({"error": "Title and questions are required"}), 400
+    quiz = {
+        "title": data['title'],
+        "questions": data['questions'],
+        "created_at": datetime.now(timezone.utc)
+    }
+    quizzes_collection.insert_one(quiz)
+    return jsonify({"message": "Quiz created successfully"}), 201
+
+@app.route('/api/quizzes', methods=['GET'])
+def get_quizzes():
+    telegram_id = request.args.get('telegram_id')
+    user = users_collection.find_one({"telegram_id": telegram_id})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    answered_quizzes = user.get('answered_quizzes', [])
+    available_quizzes = list(quizzes_collection.find({"_id": {"$nin": [ObjectId(qid) for qid in answered_quizzes]}}))
+    available_quizzes = [quiz_serializer(quiz) for quiz in available_quizzes]
+    return jsonify(available_quizzes), 200
+
+@app.route('/api/quiz/<quiz_id>', methods=['DELETE'])
+def delete_quiz(quiz_id):
+    if not is_valid_objectid(quiz_id):
+        return jsonify({"error": "Invalid Quiz ID"}), 400
+    quizzes_collection.delete_one({"_id": ObjectId(quiz_id)})
+    return jsonify({"message": "Quiz deleted successfully"}), 200
+
+@app.route('/api/quiz/<quiz_id>', methods=['PUT'])
+def update_quiz(quiz_id):
+    if not is_valid_objectid(quiz_id):
+        return jsonify({"error": "Invalid Quiz ID"}), 400
+    data = request.json
+    if not data.get('title') or not data.get('questions'):
+        return jsonify({"error": "Title and questions are required"}), 400
+    quizzes_collection.update_one({"_id": ObjectId(quiz_id)}, {"$set": {
+        "title": data['title'],
+        "questions": data['questions']
+    }})
+    return jsonify({"message": "Quiz updated successfully"}), 200
+
+@app.route('/api/user/<telegram_id>/progress', methods=['PUT'])
+def update_user_progress(telegram_id):
+    data = request.json
+    if not data.get('current_quiz') or data.get('current_question') is None:
+        return jsonify({"error": "Current quiz and question are required"}), 400
+    user = users_collection.find_one({"telegram_id": telegram_id})
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    quizzes_today = user.get('quizzes_today', {}).get(today, 0)
+    if quizzes_today >= 3:
+        return jsonify({"error": "Daily quiz limit reached"}), 403
+    users_collection.update_one({"telegram_id": telegram_id}, {
+        "$set": {
+            "current_quiz": data['current_quiz'],
+            "current_question": data['current_question']
+        },
+        "$inc": {
+            f"quizzes_today.{today}": 1
+        }
+    })
+    return jsonify({"message": "User progress updated"}), 200
 
 @app.route('/api/user/<telegram_id>/progress', methods=['GET'])
 def get_user_progress(telegram_id):
@@ -89,22 +120,6 @@ def get_user_progress(telegram_id):
         "coins": user['coins'],
         "answered_quizzes": user['answered_quizzes']
     }), 200
-
-@app.route('/api/user/<telegram_id>/progress', methods=['PUT'])
-def update_user_progress(telegram_id):
-    data = request.json
-    if not data.get('current_quiz') or data.get('current_question') is None:
-        return jsonify({"error": "Current quiz and question are required"}), 400
-    user = users_collection.find_one({"telegram_id": telegram_id})
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    users_collection.update_one({"telegram_id": telegram_id}, {
-        "$set": {
-            "current_quiz": data['current_quiz'],
-            "current_question": data['current_question']
-        }
-    })
-    return jsonify({"message": "User progress updated"}), 200
 
 @app.route('/api/user/<telegram_id>/finish_quiz', methods=['PUT'])
 def finish_quiz(telegram_id):
@@ -129,11 +144,64 @@ def add_coins(telegram_id):
     if 'coins' not in data:
         return jsonify({"error": "Coins are required"}), 400
     user = users_collection.find_one({"telegram_id": telegram_id})
-    if not user:
-        return jsonify({"error": "User not found"}), 404
     new_coins = user['coins'] + data['coins']
     users_collection.update_one({"telegram_id": telegram_id}, {"$set": {"coins": new_coins}})
     return jsonify({"message": "Coins updated", "new_coins": new_coins}), 200
+
+@app.route('/api/user/<telegram_id>/referral', methods=['POST'])
+def referral(telegram_id):
+    referred_id = request.json.get('referred_id')
+    referred_user = users_collection.find_one({"telegram_id": referred_id})
+    if referred_user and "referred_by" not in referred_user:
+        users_collection.update_one({"telegram_id": referred_id}, {
+            "$set": {"referred_by": telegram_id}
+        })
+        users_collection.update_one({"telegram_id": telegram_id}, {
+            "$inc": {"coins": 10}
+        })
+        return jsonify({"message": "Referral successful"}), 200
+    return jsonify({"error": "User already referred or does not exist"}), 400
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    users = list(users_collection.find().sort("coins", -1).limit(10))
+    leaderboard = [{"telegram_id": user['telegram_id'], "coins": user['coins']} for user in users]
+    return jsonify(leaderboard), 200
+
+@app.route('/api/user/<telegram_id>/start_quiz', methods=['POST'])
+def start_quiz(telegram_id):
+    quiz_id = request.json.get('quiz_id')
+    start_time = datetime.now(timezone.utc)
+    users_collection.update_one({"telegram_id": telegram_id}, {
+        "$set": {"quiz_start_time": start_time, "current_quiz": quiz_id}
+    })
+    return jsonify({"message": "Quiz started"}), 200
+
+@app.route('/api/user/<telegram_id>/finish_quiz', methods=['POST'])
+def finish_quiz_with_time(telegram_id):
+    quiz_id = request.json.get('quiz_id')
+    user = users_collection.find_one({"telegram_id": telegram_id})
+    start_time = user.get("quiz_start_time")
+    if not start_time:
+        return jsonify({"error": "Quiz was not started"}), 400
+    end_time = datetime.now(timezone.utc)
+    time_taken = (end_time - start_time).total_seconds()
+    if time_taken > 300:
+        return jsonify({"message": "Time limit exceeded"}), 400
+    users_collection.update_one({"telegram_id": telegram_id}, {
+        "$set": {"quiz_start_time": None, "current_quiz": None}
+    })
+    return jsonify({"message": "Quiz finished successfully", "time_taken": time_taken}), 200
+
+@app.route('/api/quiz/<quiz_id>', methods=['GET', 'PUT', 'DELETE'])
+def get_quiz(quiz_id):
+    if not is_valid_objectid(quiz_id):
+        return jsonify({"error": "Invalid Quiz ID"}), 400
+    quiz = quizzes_collection.find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        return jsonify({"error": "Quiz not found"}), 404
+    quiz = quiz_serializer(quiz)
+    return jsonify(quiz), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
