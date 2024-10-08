@@ -58,14 +58,14 @@ def register_user():
     
     phone_number = data['phone_number']
     
-    if not (phone_number.startswith('98') or phone_number.startswith('90')):
+    if not ('98' in phone_number or '90' in phone_number):
         return jsonify({"error": "Only phone numbers from Iran and Turkey are allowed"}), 403
     
     user = users_collection.find_one({"telegram_id": data['telegram_id']})
     if user:
         return jsonify({"message": "User already registered"}), 200
 
-    country = 'Iran' if phone_number.startswith('98') else 'Türkiye'
+    country = 'Iran' if '98' in phone_number else 'Türkiye'
     
     new_user = {
         "telegram_id": data['telegram_id'],
@@ -209,7 +209,8 @@ def get_user_progress(telegram_id):
         "current_quiz": user['current_quiz'],
         "current_question": user['current_question'],
         "coins": user['coins'],
-        "answered_quizzes": user['answered_quizzes']
+        "answered_quizzes": user['answered_quizzes'],
+        "language" : user['language'],
     }), 200
 
 @app.route('/api/user/<telegram_id>/finish_quiz', methods=['PUT'])
@@ -294,5 +295,21 @@ def get_quiz(quiz_id):
     quiz = quiz_serializer(quiz)
     return jsonify(quiz), 200
 
+@app.route('/api/user/<telegram_id>/language', methods=['POST'])
+def update_user_language(telegram_id):
+    data = request.json
+    if 'language' not in data:
+        return jsonify({"error": "Language is required"}), 400
+
+    language = data['language']
+
+    user = users_collection.find_one({"telegram_id": telegram_id})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    users_collection.update_one({"telegram_id": telegram_id}, {"$set": {"language": language}})
+    return jsonify({"message": "Language updated successfully"}), 200
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True,port=8080)
