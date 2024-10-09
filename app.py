@@ -3,15 +3,26 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime, timezone
 from flask_cors import CORS
+import os
+from werkzeug.utils import secure_filename
+from PIL import Image
 
 app = Flask(__name__)
 CORS(app)
+
+UPLOAD_FOLDER = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 
 
 client = MongoClient('mongodb://localhost:27017/')
 db = client.quizdb
 users_collection = db.users
 quizzes_collection = db.quizzes
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 
 def is_valid_objectid(id):
     return ObjectId.is_valid(id)
@@ -71,29 +82,76 @@ def register_user():
         "telegram_id": data['telegram_id'],
         "phone_number": phone_number,
         "country": country,
-        "coins": 0,
+        "coins": 0, 
         "score": 0,
         "current_question": 0,
         "current_quiz": None,
         "answered_quizzes": [],
         "registered_at": datetime.now(timezone.utc),
-        "quizzes_today": {}
+        "quizzes_today": {},
+        "referred_by": data.get('referred_by')
     }
+    
     users_collection.insert_one(new_user)
+
+    if data.get('referred_by'):
+        referrer = users_collection.find_one({"telegram_id": data['referred_by']})
+        
+        if referrer:
+            users_collection.update_one({"telegram_id": data['referred_by']}, {"$inc": {"coins": 100}})
+            users_collection.update_one({"telegram_id": data['telegram_id']}, {"$inc": {"coins": 100}})
+
     return jsonify({"message": "User registered successfully"}), 201
+
+
+@app.route('/api/upload_image', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"success": False, "message": "No image file provided."}), 400
+    
+    image = request.files['image']
+    
+    if image.filename == '':
+        return jsonify({"success": False, "message": "No image selected."}), 400
+    
+    filename = secure_filename(image.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    
+    try:
+        image.save(file_path)
+        
+        img = Image.open(file_path)
+        img = img.resize((300, 300)) 
+        img.save(file_path)
+
+        image_url = f"static/uploads/{filename}"
+        return jsonify({"success": True, "image_url": image_url}), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/quiz', methods=['POST'])
 def create_quiz():
     data = request.json
-    if not data.get('title') or not data.get('questions'):
+    title = data.get('title')
+    questions = data.get('questions')
+    image = data.get('image')  
+    
+
+    if not title or not questions:
         return jsonify({"error": "Title and questions are required"}), 400
+
     quiz = {
-        "title": data['title'],
-        "questions": data['questions'],
+        "title": title,
+        "questions": questions,
+        "image": image, 
         "created_at": datetime.now(timezone.utc)
     }
+    print(quiz)
     quizzes_collection.insert_one(quiz)
-    return jsonify({"message": "Quiz created successfully"}), 201
+    return jsonify({"message": "Quiz created successfully", "quiz": quiz_serializer(quiz)}), 201
+
+
 
 @app.route('/api/quizzes', methods=['GET'])
 def get_quizzes():

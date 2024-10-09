@@ -371,9 +371,11 @@
         function loadCreateQuizForm() {
             document.getElementById('content').innerHTML = `
                 <h2>Create New Quiz</h2>
-                <form id="quizForm">
+                <form id="quizForm" enctype="multipart/form-data">
                     <label for="title">Quiz Title:</label>
                     <input type="text" id="title" name="title" placeholder="Enter quiz title" required>
+                    <label for="image">Upload Quiz Image:</label>
+                    <input type="file" id="image" name="image" accept="image/*">
 
                     <div id="questions-container">
                         <div class="question-block">
@@ -447,40 +449,80 @@
         }
 
         function createQuiz(e) {
-            e.preventDefault();
-            
-            const title = document.getElementById('title').value;
-            const questionBlocks = document.querySelectorAll('.question-block');
-            const questions = Array.from(questionBlocks).map(block => {
-                const questionText = block.querySelector('input[name="question_text"]').value;
-                const option1 = block.querySelector('input[name="option_1"]').value;
-                const option2 = block.querySelector('input[name="option_2"]').value;
-                const option3 = block.querySelector('input[name="option_3"]').value;
-                const correctOption = block.querySelector('select[name="correct_option"]').value;
-                const reward = block.querySelector('input[name="reward"]').value;
+    e.preventDefault();
 
-                return {
-                    question: questionText,
-                    options: [option1, option2, option3],
-                    correct_option: correctOption,
-                    reward: parseInt(reward)
-                };
-            });
+    const title = document.getElementById('title').value;
+    const imageInput = document.getElementById('image');
+    const imageFile = imageInput.files[0];
 
-            fetch(`${API_BASE_URL}/quiz`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ title, questions })
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-                loadCreateQuizForm(); 
-            })
-            .catch(error => console.error('Error:', error));
-        }
+    // Prepare questions array
+    const questionBlocks = document.querySelectorAll('.question-block');
+    const questions = Array.from(questionBlocks).map(block => {
+        const questionText = block.querySelector('input[name="question_text"]').value;
+        const option1 = block.querySelector('input[name="option_1"]').value;
+        const option2 = block.querySelector('input[name="option_2"]').value;
+        const option3 = block.querySelector('input[name="option_3"]').value;
+        const correctOption = block.querySelector('select[name="correct_option"]').value;
+        const reward = block.querySelector('input[name="reward"]').value;
+
+        return {
+            question: questionText,
+            options: [option1, option2, option3],
+            correct_option: correctOption,
+            reward: parseInt(reward)
+        };
+    });
+
+    if (imageFile) {
+        // Upload the image first
+        const formData = new FormData();
+        formData.append('image', imageFile);
+
+        fetch(`${API_BASE_URL}/upload_image`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const imageUrl = data.image_url;  // URL/path of the uploaded image
+                
+                // Now send the quiz data along with the image URL
+                fetch(`${API_BASE_URL}/quiz`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, questions, image: imageUrl })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    loadCreateQuizForm(); 
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert('Error uploading image.');
+            }
+        })
+        .catch(error => console.error('Error uploading image:', error));
+    } else {
+        // No image, just send the quiz data
+        fetch(`${API_BASE_URL}/quiz`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ title, questions })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            loadCreateQuizForm(); 
+        })
+        .catch(error => console.error('Error:', error));
+    }
+}
 
         function loadQuizzesTable() {
             fetch(`${API_BASE_URL}/all_quizzes`)

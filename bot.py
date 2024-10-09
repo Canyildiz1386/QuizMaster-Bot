@@ -10,15 +10,18 @@ MAIN_MENU_OPTIONS = {
         "start_quiz": "📝 Start Quiz",
         "leaderboard": "🏆 Leaderboard",
         "help": "ℹ️ Help",
-        "account_info": "👤 Account Info"
+        "account_info": "👤 Account Info",
+        "referral": "🔗 Referral Link"
     },
     "fa": {
         "start_quiz": "📝 شروع آزمون",
         "leaderboard": "🏆 جدول امتیازات",
         "help": "ℹ️ راهنما",
-        "account_info": "👤 اطلاعات حساب"
+        "account_info": "👤 اطلاعات حساب",
+        "referral": "🔗 لینک ارجاع"
     }
 }
+
 
 def translate_text(text, target_lang):
     translator = GoogleTranslator(source='auto', target=target_lang)
@@ -26,12 +29,20 @@ def translate_text(text, target_lang):
 
 async def start(update: Update, context):
     telegram_id = str(update.message.from_user.id)
+
+    args = context.args
+    referred_by = None
+    if args:
+        referred_by = args[0]  
+
     response = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress")
     
     if response.status_code == 404:
         contact_button = KeyboardButton("📱 Share Contact", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[contact_button]], resize_keyboard=True)
+
         await update.message.reply_text("👋 Welcome! Please share your contact to register 📱", reply_markup=reply_markup)
+        context.user_data['referred_by'] = referred_by  
     else:
         keyboard = [
             [InlineKeyboardButton("🌍 English", callback_data="lang_en")],
@@ -40,14 +51,38 @@ async def start(update: Update, context):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("🌐 Please select your language:", reply_markup=reply_markup)
 
+
+async def referral(update: Update, context):
+    telegram_id = str(update.message.from_user.id)
+    user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
+    user_lang = user_data.get('language', 'en')
+    
+    referral_link = f"https://t.me/GlassButtonCanBot?start={telegram_id}"  
+    
+    referral_text = translate_text(
+        "🔗 *Here is your referral link:* 🔗\n\n"
+        "Share this link with your friends. When they register, you will earn coins! 🪙\n\n", user_lang
+    )
+    
+    referral_message = f"{referral_text} {referral_link}"
+    await update.message.reply_text(referral_message, parse_mode='Markdown')
+
+
 async def handle_contact(update: Update, context):
     contact = update.message.contact
     telegram_id = str(update.message.from_user.id)
     phone_number = contact.phone_number
     
-    response = requests.post(f"{API_BASE_URL}/register", json={"telegram_id": telegram_id, "phone_number": phone_number})
+    referred_by = context.user_data.get('referred_by') 
+
+    payload = {"telegram_id": telegram_id, "phone_number": phone_number}
+    
+    if referred_by:
+        payload["referred_by"] = referred_by
+    
+    response = requests.post(f"{API_BASE_URL}/register", json=payload)
     if response.status_code in [200, 201]:
-        await update.message.reply_text("✅ You are registered successfully! 🎉")
+        await update.message.reply_text("✅ You are registered successfully! 🎉 You have earned 100 coins!")
         
         keyboard = [
             [InlineKeyboardButton("🌍 English", callback_data="lang_en")],
@@ -57,6 +92,7 @@ async def handle_contact(update: Update, context):
         await update.message.reply_text("🌐 Please select your language:", reply_markup=reply_markup)
     else:
         await update.message.reply_text(f"❌ Server error: {response.status_code} 😢")
+
 
 async def handle_language_selection(update: Update, context):
     query = update.callback_query
@@ -74,7 +110,8 @@ async def handle_language_selection(update: Update, context):
         options = MAIN_MENU_OPTIONS[selected_language]
         keyboard = [
             [KeyboardButton(options["start_quiz"]), KeyboardButton(options["leaderboard"])],
-            [KeyboardButton(options["help"]), KeyboardButton(options["account_info"])]
+            [KeyboardButton(options["help"]), KeyboardButton(options["account_info"])],
+            [KeyboardButton(options["referral"])]  
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await query.message.reply_text(main_menu_text, reply_markup=reply_markup)
@@ -130,9 +167,7 @@ async def select_quiz(update: Update, context):
     user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
     user_lang = user_data.get('language', 'en')
     
-    if start_response.status_code == 200:
-        await query.message.reply_text(translate_text("⏳ Your quiz has started! You have 5 minutes to complete it 🕒.", user_lang))
-    else:
+    if start_response.status_code != 200:
         await query.message.reply_text(translate_text("❌ Error starting quiz. Please try again 😔.", user_lang))
         return
     
@@ -142,19 +177,29 @@ async def select_quiz(update: Update, context):
         return
     
     quiz = response.json()
+    quiz_title = quiz['title']
     quiz_questions = quiz['questions']
+    quiz_image = quiz.get('image')
+    
     if user_data['current_quiz'] != quiz_id:
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/progress", json={"current_quiz": quiz_id, "current_question": 0})
         current_question = 0
     else:
         current_question = user_data.get('current_question', 0)
     
+    if quiz_image:
+        
+        with open(quiz_image, 'rb') as img:
+            await query.message.reply_photo(photo=img, caption=translate_text(f"📝 Quiz Title: {quiz_title}", user_lang))
+    else:
+        await query.message.reply_text(translate_text(f"📝 Quiz Title: {quiz_title}", user_lang))
+    
     if not quiz_questions:
         await query.message.reply_text(translate_text("❌ No questions available in this quiz 📋.", user_lang))
         return
     
     if current_question >= len(quiz_questions):
-        await query.edit_message_text(translate_text("🎉 You have finished this quiz! 🏅", user_lang))
+        await query.message.reply_text(translate_text("🎉 You have finished this quiz! 🏅", user_lang))
         return
     
     question = quiz_questions[current_question]
@@ -255,6 +300,7 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.Regex("🏆 (Leaderboard|جدول امتیازات)"), leaderboard))
     app.add_handler(MessageHandler(filters.Regex("ℹ️ (Help|راهنما)"), help_command))
     app.add_handler(MessageHandler(filters.Regex("👤 (Account Info|اطلاعات حساب)"), account))
+    app.add_handler(MessageHandler(filters.Regex("🔗 (Referral Link|لینک ارجاع)"), referral))  # Added referral handler
     
     app.add_handler(CallbackQueryHandler(select_quiz, pattern="^select_quiz_"))
     app.add_handler(CallbackQueryHandler(handle_answer, pattern="^[^select_quiz_]"))
