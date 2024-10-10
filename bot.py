@@ -291,7 +291,7 @@ async def account(update: Update, context):
         await update.message.reply_text(account_info, parse_mode='Markdown')
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
+    app = ApplicationBuilder().token('7693869905:AAE3mOdC_zCmXJVmmF_cAJUbgj-WQI911AE').build()
     
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^lang_"))
