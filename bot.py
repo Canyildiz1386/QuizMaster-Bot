@@ -3,7 +3,12 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Keyboar
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from deep_translator import GoogleTranslator
 
-API_BASE_URL = "http://128.140.49.195:8080/api"
+# API_BASE_URL = "http://128.140.49.195:8080/api"
+API_BASE_URL = "http://127.0.0.1:8080/api"
+BOT_NAME = "GlassButtonCanBot"
+ADMIN_TELEGRAM_ID_NUM = "6876153654"
+ADMIN_TELEGRAM_ID = "@tina_salimi_pk"
+
 
 MAIN_MENU_OPTIONS = {
     "en": {
@@ -11,14 +16,18 @@ MAIN_MENU_OPTIONS = {
         "leaderboard": "🏆 Leaderboard",
         "help": "ℹ️ Help",
         "account_info": "👤 Account Info",
-        "referral": "🔗 Referral Link"
+        "referral": "🔗 Referral Link",
+        "convert_coins": "💰 Convert Coins",
+        "support": "💬 Support"
     },
     "fa": {
         "start_quiz": "📝 شروع آزمون",
         "leaderboard": "🏆 جدول امتیازات",
         "help": "ℹ️ راهنما",
         "account_info": "👤 اطلاعات حساب",
-        "referral": "🔗 لینک ارجاع"
+        "referral": "🔗 لینک ارجاع",
+        "convert_coins": "💰 تبدیل سکه‌ها",
+        "support": "💬 پشتیبانی"
     }
 }
 
@@ -57,7 +66,7 @@ async def referral(update: Update, context):
     user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
     user_lang = user_data.get('language', 'en')
     
-    referral_link = f"https://t.me/GlassButtonCanBot?start={telegram_id}"  
+    referral_link = "\n\n" + f"https://t.me/{BOT_NAME}?start={telegram_id}"  
     
     referral_text = translate_text(
         "🔗 *Here is your referral link:* 🔗\n\n"
@@ -82,7 +91,7 @@ async def handle_contact(update: Update, context):
     
     response = requests.post(f"{API_BASE_URL}/register", json=payload)
     if response.status_code in [200, 201]:
-        await update.message.reply_text("✅ You are registered successfully! 🎉 You have earned 100 coins!")
+        await update.message.reply_text("✅ You are registered successfully!")
         
         keyboard = [
             [InlineKeyboardButton("🌍 English", callback_data="lang_en")],
@@ -91,7 +100,7 @@ async def handle_contact(update: Update, context):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("🌐 Please select your language:", reply_markup=reply_markup)
     else:
-        await update.message.reply_text(f"❌ Server error: {response.status_code} 😢")
+        await update.message.reply_text(f"❌ Server error: {response.json()['error']} 😢")
 
 
 async def handle_language_selection(update: Update, context):
@@ -109,15 +118,14 @@ async def handle_language_selection(update: Update, context):
         
         options = MAIN_MENU_OPTIONS[selected_language]
         keyboard = [
-            [KeyboardButton(options["start_quiz"]), KeyboardButton(options["leaderboard"])],
+            [KeyboardButton(options["start_quiz"]),KeyboardButton(options["convert_coins"])],
             [KeyboardButton(options["help"]), KeyboardButton(options["account_info"])],
-            [KeyboardButton(options["referral"])]  
+           [KeyboardButton(options["referral"]), KeyboardButton(options["support"])]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await query.message.reply_text(main_menu_text, reply_markup=reply_markup)
     else:
         await query.message.reply_text("❌ Error updating language.")
-
 
 
 async def help_command(update: Update, context):
@@ -126,7 +134,7 @@ async def help_command(update: Update, context):
     user_lang = user_data.get('language', 'en')
     
     help_text = translate_text(
-        "ℹ️ *Help Menu* ℹ️\n"
+        "ℹ️ *Help Menu* ℹ️\n\n"
         "Here are some commands you can use:\n\n"
         "✅ Start Quiz by clicking on 📝 Start Quiz\n"
         "🏆 View the leaderboard by clicking on 🏆 Leaderboard\n"
@@ -134,6 +142,7 @@ async def help_command(update: Update, context):
         "ℹ️ Get help with ℹ️ Help\n", user_lang
     )
     await update.message.reply_text(help_text, parse_mode='Markdown')
+
 
 async def quiz(update: Update, context):
     telegram_id = str(update.message.from_user.id)
@@ -158,6 +167,7 @@ async def quiz(update: Update, context):
     reply_markup = InlineKeyboardMarkup(buttons)
     await update.message.reply_text(translate_text("📚 Please select a quiz 🧠:", user_lang), reply_markup=reply_markup)
 
+
 async def select_quiz(update: Update, context):
     query = update.callback_query
     quiz_id = query.data.split("_")[-1]
@@ -173,7 +183,7 @@ async def select_quiz(update: Update, context):
     
     response = requests.get(f"{API_BASE_URL}/quiz/{quiz_id}")
     if response.status_code != 200:
-        await query.message.reply_text(translate_text(f"❌ Error fetching quiz data (status code {response.status_code}) 😢.", user_lang))
+        await query.message.reply_text(translate_text(f"❌ Error fetching quiz data (status code {response.json()['error']}) 😢.", user_lang))
         return
     
     quiz = response.json()
@@ -188,7 +198,6 @@ async def select_quiz(update: Update, context):
         current_question = user_data.get('current_question', 0)
     
     if quiz_image:
-        
         with open(quiz_image, 'rb') as img:
             await query.message.reply_photo(photo=img, caption=translate_text(f"📝 Quiz Title: {quiz_title}", user_lang))
     else:
@@ -207,6 +216,7 @@ async def select_quiz(update: Update, context):
     buttons = [[InlineKeyboardButton(translate_text(option, user_lang), callback_data=option) for option in options]]
     reply_markup = InlineKeyboardMarkup(buttons)
     await query.message.reply_text(translate_text(f"📝 Question: {question['question']} 🤔", user_lang), reply_markup=reply_markup)
+
 
 async def handle_answer(update: Update, context):
     query = update.callback_query
@@ -251,6 +261,7 @@ async def handle_answer(update: Update, context):
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/finish_quiz", json={"quiz_id": quiz_id})
         await query.message.reply_text(translate_text("🎉 You have finished the quiz! 🏆", user_lang))
 
+
 async def leaderboard(update: Update, context):
     response = requests.get(f"{API_BASE_URL}/leaderboard")
     leaderboard = response.json()
@@ -258,11 +269,12 @@ async def leaderboard(update: Update, context):
     user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
     user_lang = user_data.get('language', 'en')
     
-    leaderboard_text = translate_text("🏆 Top 10 Users:\n\n", user_lang)
+    leaderboard_text = translate_text("🏆 Top 10 Users:\n\n", user_lang) + "\n\n"
     for rank, user in enumerate(leaderboard, 1):
-        leaderboard_text += f"{rank}. {user['telegram_id']} - {user['coins']} {translate_text('coins 🪙', user_lang)}\n"
+        leaderboard_text += f"{rank}. {user['coins']} {translate_text('coins 🪙', user_lang)}\n"
     
     await update.message.reply_text(leaderboard_text)
+
 
 async def account(update: Update, context):
     telegram_id = str(update.message.from_user.id)
@@ -281,7 +293,7 @@ async def account(update: Update, context):
             quiz_title = "Nothing"
         
         account_info = (
-            translate_text("👤 *Your Account Information* 👤\n\n", user_lang)
+            translate_text("👤 *Your Account Information* 👤\n\n", user_lang) + "\n\n"
             + translate_text("\n\n 🆔 Telegram ID: ", user_lang) + user_data['telegram_id'] + "\n"
             + translate_text("🧠 Current Quiz: ", user_lang) + quiz_title + "\n"
             + translate_text("📊 Current Question: ", user_lang) + str(user_data['current_question']) + "\n"
@@ -290,8 +302,47 @@ async def account(update: Update, context):
         )
         await update.message.reply_text(account_info, parse_mode='Markdown')
 
+
+# Function to handle convert coins request
+async def convert_coins(update: Update, context):
+    telegram_id = str(update.message.from_user.id)
+    user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
+    user_lang = user_data.get('language', 'en')
+
+    user_coins = user_data['coins']
+    
+    await update.message.reply_text(
+        translate_text(f"💰 You have {user_coins} coins. How many coins would you like to convert?", user_lang)
+    )
+    
+    context.user_data['coins_to_convert'] = user_coins
+
+
+async def handle_conversion_request(update: Update, context):
+    telegram_id = str(update.message.from_user.id)
+    coins_to_convert = int(update.message.text)
+    total_coins = context.user_data.get('coins_to_convert')
+
+    if coins_to_convert > total_coins:
+        await update.message.reply_text("❌ You don't have enough coins.")
+        return
+
+    admin_message = f"🔔 User {telegram_id} requested to convert {coins_to_convert} coins."
+    await context.bot.send_message(chat_id=ADMIN_TELEGRAM_ID, text=admin_message)
+
+    await update.message.reply_text("✅ Your request has been sent to the admin for approval.")
+
+async def support(update: Update, context):
+    telegram_id = str(update.message.from_user.id)
+    user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
+    user_lang = user_data.get('language', 'en')
+    
+    support_text = translate_text(f"💬 If you need support, contact the admin at: {ADMIN_TELEGRAM_ID}.", user_lang)
+    await update.message.reply_text(support_text)
+
 if __name__ == '__main__':
-    app = ApplicationBuilder().token('7693869905:AAE3mOdC_zCmXJVmmF_cAJUbgj-WQI911AE').build()
+    #app = ApplicationBuilder().token('7693869905:AAE3mOdC_zCmXJVmmF_cAJUbgj-WQI911AE').build()
+    app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
     
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^lang_"))
@@ -300,9 +351,13 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.Regex("🏆 (Leaderboard|جدول امتیازات)"), leaderboard))
     app.add_handler(MessageHandler(filters.Regex("ℹ️ (Help|راهنما)"), help_command))
     app.add_handler(MessageHandler(filters.Regex("👤 (Account Info|اطلاعات حساب)"), account))
-    app.add_handler(MessageHandler(filters.Regex("🔗 (Referral Link|لینک ارجاع)"), referral))  # Added referral handler
+    app.add_handler(MessageHandler(filters.Regex("🔗 (Referral Link|لینک ارجاع)"), referral))  
+    app.add_handler(MessageHandler(filters.Regex("💰 (Convert Coins|تبدیل سکه‌ها)"), convert_coins))  # Added convert coins handler
+    app.add_handler(MessageHandler(filters.Regex("💬 (Support|پشتیبانی)"), support))  
     
     app.add_handler(CallbackQueryHandler(select_quiz, pattern="^select_quiz_"))
     app.add_handler(CallbackQueryHandler(handle_answer, pattern="^[^select_quiz_]"))
     
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\d+$'), handle_conversion_request))  # Handle coin conversion requests
+
     app.run_polling()
