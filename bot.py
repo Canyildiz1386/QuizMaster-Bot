@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Keyboar
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from deep_translator import GoogleTranslator
 
-API_BASE_URL = "http://127.0.0.1:8080/api"
+API_BASE_URL = "http://128.140.49.195:8080/api"
 
 MAIN_MENU_OPTIONS = {
     "en": {
