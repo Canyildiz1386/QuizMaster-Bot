@@ -91,6 +91,7 @@ def get_all_users():
     
     for user in users:
         user['_id'] = str(user['_id'])  # Convert ObjectId to string
+        user['id'] = user['_id']
         user['referral_count'] = users_collection.count_documents({"referred_by": user['telegram_id']})  # Add referral count
     
     return jsonify(users), 200

@@ -857,8 +857,8 @@ function renderUserTable(users) {
                 <td>${user.coins}</td>
                 <td>${user.referral_count}</td>
                 <td>
-                    <button class="action-btn edit-btn" onclick="editUser('${user._id}')">Edit</button>
-                    <button class="action-btn delete-btn" onclick="deleteUser('${user._id}')">Delete</button>
+                    <button class="action-btn edit-btn" onclick="editUser('${user.id}')">Edit</button>
+                    <button class="action-btn delete-btn" onclick="deleteUser('${user.id}')">Delete</button>
                 </td>
             </tr>
         `;
