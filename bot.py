@@ -343,6 +343,7 @@ async def support(update: Update, context):
 if __name__ == '__main__':
     app = ApplicationBuilder().token('7693869905:AAE3mOdC_zCmXJVmmF_cAJUbgj-WQI911AE').build()
     # app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
+    #completed 
     
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^lang_"))

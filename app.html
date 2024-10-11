@@ -317,8 +317,8 @@
         <div id="content"></div>
     </main>
     <script>
-        const API_BASE_URL = 'http://128.140.49.195:8080/api';
-        // const API_BASE_URL = 'http://127.0.0.1:8080/api';
+        // const API_BASE_URL = 'http://128.140.49.195:8080/api';
+        const API_BASE_URL = 'http://127.0.0.1:8080/api';
 
         let questionCount = 1;
 
@@ -669,6 +669,8 @@ function generateOptions(event, questionIndex) {
         let content = '<h2>All Quizzes</h2><table><thead><tr><th>Title</th><th>Questions</th><th>Registered Users</th><th>Winners</th><th>Total Coins Paid</th><th>Actions</th></tr></thead><tbody>';
         
         data.forEach(quiz => {
+            console.log(quiz)
+            quiz._id = quiz.id;
             const questions = quiz.questions.map(q => `<li>${q.question}</li>`).join('');
             content += `
                 <tr>

@@ -73,7 +73,8 @@ def get_all_quizzes():
             "questions": quiz.get("questions"),
             "registered_users": registered_users,
             "winners": winners,
-            "total_coins_paid": total_coins
+            "total_coins_paid": total_coins,
+            "id" : quiz_id
         }
         
         quizzes_with_stats.append(quiz_stats)
