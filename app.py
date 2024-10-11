@@ -125,6 +125,44 @@ def get_overall_statistics():
     
     return jsonify(response), 200
 
+@app.route('/api/user/<user_id>', methods=['PUT'])
+def update_user_by_id(user_id):
+    # Validate the user_id (check if it's a valid ObjectId)
+    if not ObjectId.is_valid(user_id):
+        return jsonify({"error": "Invalid user ID"}), 400
+    
+    # Fetch the data from the request
+    data = request.json
+
+    # Validate the input data
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    update_fields = {}
+    
+    # Check for optional fields and update them if they are present in the request
+    if 'phone_number' in data:
+        update_fields['phone_number'] = data['phone_number']
+    
+    if 'country' in data:
+        update_fields['country'] = data['country']
+    
+    if 'coins' in data:
+        if isinstance(data['coins'], int) and data['coins'] >= 0:
+            update_fields['coins'] = data['coins']
+        else:
+            return jsonify({"error": "Invalid coins value"}), 400
+    
+    # Find the user by user_id
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Update the user document in the database
+    users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_fields})
+    
+    return jsonify({"message": "User details updated successfully"}), 200
+
 
 @app.route('/api/user/<user_id>', methods=['PUT'])
 def update_user(user_id):
