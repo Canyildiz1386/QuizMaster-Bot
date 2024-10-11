@@ -530,68 +530,67 @@ function showImagePreview(event) {
         }
 
         function addQuestion() {
-            questionCount++;
-            const questionHTML = `
-                <button type="button" class="accordion">Question ${questionCount}</button>
-                <div class="panel">
-                    <h3>Question ${questionCount}</h3>
-                    <label>Question Text:</label>
-                    <input type="text" name="question_text" placeholder="Enter question text" required>
+    questionCount++;
+    const questionHTML = `
+        <button type="button" class="accordion">Question ${questionCount}</button>
+        <div class="panel">
+            <h3>Question ${questionCount}</h3>
+            <label>Question Text:</label>
+            <input type="text" name="question_text" placeholder="Enter question text" required>
 
-                    <label>How many options?</label>
-                    <input type="number" min="1" name="option_count" id="option_count_${questionCount}" placeholder="Enter number of options" required>
+            <label>How many options?</label>
+            <input type="number" min="1" name="option_count" id="option_count_${questionCount}" placeholder="Enter number of options" required>
 
-                    <div id="options_${questionCount}"></div>
+            <!-- Ensure that this div has a unique id for options -->
+            <div id="options_${questionCount}"></div>
 
-                    <label>Correct Option:</label>
-                    <select name="correct_option" required>
-                        <option value="" disabled selected>Select correct option</option>
-                    </select>
+            <label>Correct Option:</label>
+            <select name="correct_option" required>
+                <option value="" disabled selected>Select correct option</option>
+            </select>
 
-                    <label>Reward (coins):</label>
-                    <input type="number" name="reward" placeholder="Enter reward" min="0" required>
-                </div>
-            `;
-            document.getElementById('questions-container').insertAdjacentHTML('beforeend', questionHTML);
+            <label>Reward (coins):</label>
+            <input type="number" name="reward" placeholder="Enter reward" min="0" required>
+        </div>
+    `;
+    document.getElementById('questions-container').insertAdjacentHTML('beforeend', questionHTML);
 
-            document.querySelectorAll('.accordion').forEach(accordion => accordion.removeEventListener('click', toggleAccordion));
-            document.querySelectorAll('.accordion').forEach(accordion => accordion.addEventListener('click', toggleAccordion));
+    document.querySelectorAll('.accordion').forEach(accordion => accordion.removeEventListener('click', toggleAccordion));
+    document.querySelectorAll('.accordion').forEach(accordion => accordion.addEventListener('click', toggleAccordion));
 
-            document.getElementById(`option_count_${questionCount}`).addEventListener('input', (e) => generateOptions(e, questionCount));
-        }
+    document.getElementById(`option_count_${questionCount}`).addEventListener('input', (e) => generateOptions(e, questionCount));
+}
 
-        function generateOptions(event, questionIndex, mode = 'create') {
-    const optionCount = event.target.value;
-    const optionsContainer = document.getElementById(`${mode}_options_${questionIndex}`);
-    const existingOptions = optionsContainer.querySelectorAll('input[type="text"]').length;
-
-    // If the option count has increased, add new option inputs
-    if (optionCount > existingOptions) {
-        for (let i = existingOptions + 1; i <= optionCount; i++) {
-            optionsContainer.insertAdjacentHTML('beforeend', `
-                <label>Option ${i}:</label>
-                <input type="text" name="option_${questionIndex}_${i}" placeholder="Enter option ${i}" required>
-            `);
-        }
-    } 
-    // If the option count has decreased, remove excess option inputs
-    else if (optionCount < existingOptions) {
-        for (let i = existingOptions; i > optionCount; i--) {
-            const optionLabel = optionsContainer.querySelector(`label:nth-of-type(${i * 2 - 1})`);
-            const optionInput = optionsContainer.querySelector(`input:nth-of-type(${i})`);
-            optionLabel.remove();
-            optionInput.remove();
-        }
+function generateOptions(event, questionIndex) {
+    const optionCount = event.target.value;  // Get the number of options entered by the user
+    const optionsContainer = document.getElementById(`options_${questionIndex}`);  // Get the container for options
+    
+    // Check if the options container exists
+    if (!optionsContainer) {
+        console.error(`Options container for question ${questionIndex} not found`);
+        return;
     }
 
+    // Clear the container before adding new options
+    optionsContainer.innerHTML = '';
+
+    // Generate input fields for each option
+    for (let i = 1; i <= optionCount; i++) {
+        const optionHTML = `
+            <label>Option ${i}:</label>
+            <input type="text" name="option_${questionIndex}_${i}" placeholder="Enter option ${i}" required>
+        `;
+        optionsContainer.insertAdjacentHTML('beforeend', optionHTML);
+    }
+
+    // Update the correct option dropdown
     const select = event.target.closest('.panel').querySelector('select[name="correct_option"]');
-    select.innerHTML = '<option value="" disabled selected>Select correct option</option>'; // Reset the correct option dropdown
+    select.innerHTML = '<option value="" disabled selected>Select correct option</option>';  // Reset the dropdown
 
     for (let i = 1; i <= optionCount; i++) {
         select.insertAdjacentHTML('beforeend', `<option value="option_${i}">Option ${i}</option>`);
     }
 }
-
 
         function createQuiz(e) {
             e.preventDefault();
