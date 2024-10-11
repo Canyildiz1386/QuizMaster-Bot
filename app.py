@@ -31,12 +31,54 @@ def quiz_serializer(quiz):
     quiz['_id'] = str(quiz['_id'])
     return quiz
 
+@app.route('/api/user/<telegram_id>/details', methods=['GET'])
+def get_user_details(telegram_id):
+    user = users_collection.find_one({"telegram_id": telegram_id})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    referral_count = users_collection.count_documents({"referred_by": telegram_id})  # Count of referred users
+    
+    return jsonify({
+        "telegram_id": user['telegram_id'],
+        "phone_number": user['phone_number'],
+        "country": user['country'],
+        "coins": user['coins'],
+        "referral_count": referral_count,  # Add referral count to the response
+        "referred_users": list(users_collection.find({"referred_by": telegram_id}, {"telegram_id": 1, "coins": 1}))  # List of referred users and their coins
+    }), 200
+
 
 @app.route('/api/all_quizzes', methods=['GET'])
 def get_all_quizzes():
     quizzes = list(quizzes_collection.find())
-    quizzes = [quiz_serializer(quiz) for quiz in quizzes]
-    return jsonify(quizzes), 200
+    quizzes_with_stats = []
+    
+    for quiz in quizzes:
+        quiz_id = str(quiz['_id'])
+        
+        registered_users = users_collection.count_documents({"answered_quizzes": quiz_id})
+        
+        winners = users_collection.count_documents({"answered_quizzes": quiz_id})
+        
+        total_coins_paid = users_collection.aggregate([
+            {"$match": {"answered_quizzes": quiz_id}},
+            {"$group": {"_id": None, "total_coins": {"$sum": "$coins"}}}
+        ])
+        
+        total_coins = next(total_coins_paid, {}).get("total_coins", 0)
+        
+        quiz_stats = {
+            "title": quiz.get("title"),
+            "questions": quiz.get("questions"),
+            "registered_users": registered_users,
+            "winners": winners,
+            "total_coins_paid": total_coins
+        }
+        
+        quizzes_with_stats.append(quiz_stats)
+
+    return jsonify(quizzes_with_stats), 200
 
 def user_serializer(user):
     user['_id'] = str(user['_id'])  
@@ -44,9 +86,42 @@ def user_serializer(user):
 
 @app.route('/api/all_users', methods=['GET'])
 def get_all_users():
-    users = list(users_collection.find())  
-    serialized_users = [user_serializer(user) for user in users]  
-    return jsonify(serialized_users), 200 
+    users = list(users_collection.find())
+    
+    for user in users:
+        user['_id'] = str(user['_id'])  # Convert ObjectId to string
+        user['referral_count'] = users_collection.count_documents({"referred_by": user['telegram_id']})  # Add referral count
+    
+    return jsonify(users), 200
+
+@app.route('/api/statistics/overall', methods=['GET'])
+def get_overall_statistics():
+    # 1. Total Coins Paid: Sum of coins paid to users in all completed quizzes
+    total_coins_paid = users_collection.aggregate([
+        {"$group": {"_id": None, "total_paid": {"$sum": "$coins"}}}
+    ])
+    total_coins_paid = next(total_coins_paid, {}).get("total_paid", 0)
+    
+    # 2. Total Coins Held by Users: Sum of all users' coins
+    total_coins_held = users_collection.aggregate([
+        {"$group": {"_id": None, "total_held": {"$sum": "$coins"}}}
+    ])
+    total_coins_held = next(total_coins_held, {}).get("total_held", 0)
+    
+    # 3. Total Winners: Count of users with completed quizzes (users who completed at least one quiz)
+    total_winners = users_collection.count_documents({"answered_quizzes": {"$exists": True, "$not": {"$size": 0}}})
+    
+    # 4. Total Participants: Count of users who have participated in any quiz
+    total_participants = users_collection.count_documents({"answered_quizzes": {"$exists": True, "$not": {"$size": 0}}})
+
+    response = {
+        "total_coins_paid": total_coins_paid,  # Total coins paid
+        "total_coins_held": total_coins_held,  # Total coins held by users
+        "total_winners": total_winners,  # Total winners (who completed at least one quiz)
+        "total_participants": total_participants  # Total number of participants
+    }
+    
+    return jsonify(response), 200
 
 
 @app.route('/api/user/<user_id>', methods=['PUT'])
@@ -102,6 +177,20 @@ def register_user():
             users_collection.update_one({"telegram_id": data['telegram_id']}, {"$inc": {"coins": 100}})
 
     return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    # Example authentication (you would use your database to validate users)
+    user = users_collection.find_one({"username": username})
+    print(username)
+    if username == "admin" and password == "admin":  # You should hash and securely check the password
+        return jsonify({"success": True, "user": {"username": "admin", "role": "admin"}}), 200
+    else:
+        return jsonify({"success": False, "message": "Invalid credentials"}), 401
 
 
 @app.route('/api/upload_image', methods=['POST'])

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Quiz Manager PWA">
+    <title>Quiz Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Keep all previous styles here */
+        /* Accordion styles */
+        .accordion {
+            background-color: #1e1e1e;
+            color: #fff;
+            cursor: pointer;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border: none;
+            border-radius: 4px;
+            text-align: left;
+            outline: none;
+            font-size: 1.1rem;
+            transition: background-color 0.3s;
+        }
+
+        .accordion:hover {
+            background-color: #2a2a2a;
+        }
+
+        .panel {
+            background-color: #1c1c1c;
+            display: none;
+            overflow: hidden;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            box-shadow: var(--box-shadow);
+        }
+
+        .panel.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Quiz Manager PWA</h1>
+    </header>
+
+    <nav>
+        <button id="createQuizBtn">Create Quiz</button>
+        <button id="viewQuizzesBtn">View All Quizzes</button>
+        <button id="manageUsersBtn">Manage Users</button>
+        <button id="userStatsBtn">User Statistics</button>
+        <button id="quizStatsBtn">Quiz Statistics</button>
+    </nav>
+
+    <main>
+        <div id="content"></div>
+    </main>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8080/api';
+        let questionCount = 1;
+
+        document.getElementById('createQuizBtn').addEventListener('click', loadCreateQuizForm);
+        document.getElementById('viewQuizzesBtn').addEventListener('click', loadQuizzesTable);
+        document.getElementById('manageUsersBtn').addEventListener('click', loadUserManager);
+        document.getElementById('userStatsBtn').addEventListener('click', loadUserStatistics);
+        document.getElementById('quizStatsBtn').addEventListener('click', loadQuizStatistics);
+
+        // Add similar functionality for editing quiz by showing options count dynamically
+        function editQuiz(quizId) {
+            fetch(`${API_BASE_URL}/quiz/${quizId}`)
+            .then(response => response.json())
+            .then(quiz => {
+                let content = `
+                    <h2>Edit Quiz</h2>
+                    <form id="editQuizForm">
+                        <label for="editTitle">Quiz Title:</label>
+                        <input type="text" id="editTitle" value="${quiz.title}" required>
+
+                        <div id="editQuestionsContainer">
+                `;
+                quiz.questions.forEach((q, i) => {
+                    content += `
+                        <button type="button" class="accordion">Question ${i + 1}</button>
+                        <div class="panel">
+                            <h3>Question ${i + 1}</h3>
+                            <label>Question Text:</label>
+                            <input type="text" name="question_text" value="${q.question}" required>
+
+                            <label>How many options?</label>
+                            <input type="number" min="1" name="option_count" id="edit_option_count_${i + 1}" value="${q.options.length}" required>
+
+                            <div id="edit_options_${i + 1}">
+                                ${q.options.map((opt, index) => `
+                                    <label>Option ${index + 1}:</label>
+                                    <input type="text" name="option_${i + 1}_${index + 1}" value="${opt}" required>
+                                `).join('')}
+                            </div>
+
+                            <label>Correct Option:</label>
+                            <select name="correct_option" required>
+                                <option value="" disabled>Select correct option</option>
+                                ${q.options.map((opt, index) => `
+                                    <option value="option_${index + 1}" ${q.correct_option === `option_${index + 1}` ? 'selected' : ''}>Option ${index + 1}</option>
+                                `).join('')}
+                            </select>
+
+                            <label>Reward (coins):</label>
+                            <input type="number" name="reward" value="${q.reward}" min="0" required>
+                        </div>
+                    `;
+                });
+                content += `
+                        </div>
+                        <button type="submit">Update Quiz</button>
+                    </form>
+                `;
+                document.getElementById('content').innerHTML = content;
+
+                document.querySelectorAll('.accordion').forEach(accordion => accordion.addEventListener('click', toggleAccordion));
+                quiz.questions.forEach((q, i) => {
+                    document.getElementById(`edit_option_count_${i + 1}`).addEventListener('input', (e) => generateOptions(e, i + 1, 'edit'));
+                });
+
+                document.getElementById('editQuizForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    updateQuiz(quizId);
+                });
+            });
+        }
+
+        function updateQuiz(quizId) {
+            const title = document.getElementById('editTitle').value;
+            const questionBlocks = document.querySelectorAll('.panel');
+            const questions = Array.from(questionBlocks).map((block, index) => {
+                const questionText = block.querySelector('input[name="question_text"]').value;
+                const correctOption = block.querySelector('select[name="correct_option"]').value;
+                const reward = block.querySelector('input[name="reward"]').value;
+                const optionCount = block.querySelector('input[name="option_count"]').value;
+                const options = [];
+
+                for (let i = 1; i <= optionCount; i++) {
+                    options.push(block.querySelector(`input[name="option_${index + 1}_${i}"]`).value);
+                }
+
+                return {
+                    question: questionText,
+                    options: options,
+                    correct_option: correctOption,
+                    reward: parseInt(reward)
+                };
+            });
+
+            fetch(`${API_BASE_URL}/quiz/${quizId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, questions })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadQuizzesTable();
+            });
+        }
+
+    </script>
+</body>
+</html>
