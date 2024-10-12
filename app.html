@@ -317,8 +317,8 @@
         <div id="content"></div>
     </main>
     <script>
-        const API_BASE_URL = 'http://128.140.49.195:8080/api';
-        // const API_BASE_URL = 'http://127.0.0.1:8080/api';
+        // const API_BASE_URL = 'http://128.140.49.195:8080/api';
+        const API_BASE_URL = 'http://127.0.0.1:8080/api';
 
         let questionCount = 1;
 
@@ -456,40 +456,41 @@ function checkLogin() {
 
         // Call the checkLogin function when the page loads
         checkLogin();
-
-
         function loadCreateQuizForm() {
     document.getElementById('content').innerHTML = `
-        <h2>Create New Quiz</h2>
         <form id="quizForm" enctype="multipart/form-data">
             <label for="title">Quiz Title:</label>
             <input type="text" id="title" name="title" placeholder="Enter quiz title" required>
 
-            <label for="image">Upload Quiz Image:</label>
-            <input type="file" id="image" name="image" accept="image/*">
-            <div id="imagePreviewContainer">
-                <img id="imagePreview" src="" alt="No Image Selected" style="max-width: 200px; display: none;">
-            </div>
+            <label for="description">Quiz Description:</label>
+            <textarea id="description" name="description" placeholder="Enter a description for the quiz" required></textarea>
+
+            <label for="time_limit">Quiz Time Limit (minutes):</label>
+            <input type="number" id="time_limit" name="time_limit" placeholder="Enter time limit" required>
 
             <div id="questions-container">
                 <button type="button" class="accordion">Question 1</button>
                 <div class="panel">
                     <h3>Question 1</h3>
                     <label>Question Text:</label>
-                    <input type="text" name="question_text" placeholder="Enter question text" required>
+                    <input type="text" name="question_text_1" placeholder="Enter question text" required>
+
+                    <label for="question_image_1">Upload Question Image:</label>
+                    <input type="file" id="question_image_1" name="question_image_1" accept="image/*">
+                    <div id="questionImagePreview_1"></div>
 
                     <label>How many options?</label>
-                    <input type="number" min="1" name="option_count" id="option_count_1" placeholder="Enter number of options" required>
+                    <input type="number" min="1" name="option_count_1" id="option_count_1" placeholder="Enter number of options" required>
 
                     <div id="options_1"></div>
 
                     <label>Correct Option:</label>
-                    <select name="correct_option" required>
+                    <select name="correct_option_1" required>
                         <option value="" disabled selected>Select correct option</option>
                     </select>
 
                     <label>Reward (coins):</label>
-                    <input type="number" name="reward" placeholder="Enter reward" min="0" required>
+                    <input type="number" name="reward_1" placeholder="Enter reward" min="0" required>
                 </div>
             </div>
 
@@ -503,10 +504,9 @@ function checkLogin() {
     document.getElementById('addQuestionBtn').addEventListener('click', addQuestion);
     document.getElementById('quizForm').addEventListener('submit', createQuiz);
     document.getElementById('option_count_1').addEventListener('input', (e) => generateOptions(e, 1));
-
-    // Event listener for image upload and preview
-    document.getElementById('image').addEventListener('change', showImagePreview);
 }
+
+
 function showImagePreview(event) {
     const file = event.target.files[0];
     const imagePreview = document.getElementById('imagePreview');
@@ -536,31 +536,38 @@ function showImagePreview(event) {
         <div class="panel">
             <h3>Question ${questionCount}</h3>
             <label>Question Text:</label>
-            <input type="text" name="question_text" placeholder="Enter question text" required>
+            <input type="text" name="question_text_${questionCount}" placeholder="Enter question text" required>
+
+            <label for="question_image_${questionCount}">Upload Question Image:</label>
+            <input type="file" id="question_image_${questionCount}" name="question_image_${questionCount}" accept="image/*">
+            <div id="questionImagePreview_${questionCount}"></div>
 
             <label>How many options?</label>
-            <input type="number" min="1" name="option_count" id="option_count_${questionCount}" placeholder="Enter number of options" required>
+            <input type="number" min="1" name="option_count_${questionCount}" id="option_count_${questionCount}" placeholder="Enter number of options" required>
 
             <!-- Ensure that this div has a unique id for options -->
             <div id="options_${questionCount}"></div>
 
             <label>Correct Option:</label>
-            <select name="correct_option" required>
+            <select name="correct_option_${questionCount}" required>
                 <option value="" disabled selected>Select correct option</option>
             </select>
 
             <label>Reward (coins):</label>
-            <input type="number" name="reward" placeholder="Enter reward" min="0" required>
+            <input type="number" name="reward_${questionCount}" placeholder="Enter reward" min="0" required>
         </div>
     `;
+    
+    // Add the new question block to the questions container
     document.getElementById('questions-container').insertAdjacentHTML('beforeend', questionHTML);
 
+    // Add event listeners for the new question
     document.querySelectorAll('.accordion').forEach(accordion => accordion.removeEventListener('click', toggleAccordion));
     document.querySelectorAll('.accordion').forEach(accordion => accordion.addEventListener('click', toggleAccordion));
 
+    // Add event listener for dynamically added option input field
     document.getElementById(`option_count_${questionCount}`).addEventListener('input', (e) => generateOptions(e, questionCount));
 }
-
 function generateOptions(event, questionIndex) {
     const optionCount = event.target.value;  // Get the number of options entered by the user
     const optionsContainer = document.getElementById(`options_${questionIndex}`);  // Get the container for options
@@ -584,7 +591,7 @@ function generateOptions(event, questionIndex) {
     }
 
     // Update the correct option dropdown
-    const select = event.target.closest('.panel').querySelector('select[name="correct_option"]');
+    const select = event.target.closest('.panel').querySelector(`select[name="correct_option_${questionIndex}"]`);
     select.innerHTML = '<option value="" disabled selected>Select correct option</option>';  // Reset the dropdown
 
     for (let i = 1; i <= optionCount; i++) {
@@ -592,76 +599,76 @@ function generateOptions(event, questionIndex) {
     }
 }
 
-        function createQuiz(e) {
-            e.preventDefault();
-            const title = document.getElementById('title').value;
-            const imageInput = document.getElementById('image');
-            const imageFile = imageInput.files[0];
+function createQuiz(e) {
+    e.preventDefault();
 
-            // Prepare questions array
-            const questionBlocks = document.querySelectorAll('.panel');
-            const questions = Array.from(questionBlocks).map((block, index) => {
-                const questionText = block.querySelector('input[name="question_text"]').value;
-                const correctOption = block.querySelector('select[name="correct_option"]').value;
-                const reward = block.querySelector('input[name="reward"]').value;
-                const optionCount = block.querySelector('input[name="option_count"]').value;
-                const options = [];
+    const formData = new FormData();
+    
+    // Append quiz metadata
+    formData.append('title', document.getElementById('title').value);
+    formData.append('description', document.getElementById('description').value);
+    formData.append('time_limit', document.getElementById('time_limit').value);
 
-                for (let i = 1; i <= optionCount; i++) {
-                    options.push(block.querySelector(`input[name="option_${index + 1}_${i}"]`).value);
-                }
+    // Prepare and append questions
+    const questionBlocks = document.querySelectorAll('.panel');
+    
+    if (questionBlocks.length === 0) {
+        alert('You must add at least one question');
+        return;
+    }
 
-                return {
-                    question: questionText,
-                    options: options,
-                    correct_option: correctOption,
-                    reward: parseInt(reward)
-                };
-            });
+    formData.append('question_count', questionBlocks.length);
 
-            if (imageFile) {
-                const formData = new FormData();
-                formData.append('image', imageFile);
+    questionBlocks.forEach((block, index) => {
+        const questionIndex = index + 1;
 
-                fetch(`${API_BASE_URL}/upload_image`, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const imageUrl = data.image_url;
-                        fetch(`${API_BASE_URL}/quiz`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ title, questions, image: imageUrl })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            alert(data.message);
-                            loadCreateQuizForm();
-                        });
-                    } else {
-                        alert('Error uploading image.');
-                    }
-                });
-            } else {
-                fetch(`${API_BASE_URL}/quiz`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ title, questions })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    loadCreateQuizForm();
-                });
-            }
+        // Append question text
+        const questionText = block.querySelector(`input[name="question_text_${questionIndex}"]`).value;
+        if (!questionText) {
+            alert('All questions must have text');
+            return;
         }
+        formData.append(`question_text_${questionIndex}`, questionText);
+        
+        // Append correct option
+        const correctOption = block.querySelector(`select[name="correct_option_${questionIndex}"]`).value;
+        formData.append(`correct_option_${questionIndex}`, correctOption);
+
+        // Append reward
+        const reward = block.querySelector(`input[name="reward_${questionIndex}"]`).value;
+        formData.append(`reward_${questionIndex}`, reward);
+
+        // Append options
+        const options = block.querySelectorAll(`input[name^="option_${questionIndex}_"]`);
+        options.forEach((opt) => {
+            formData.append(`options_${questionIndex}`, opt.value);
+        });
+
+        // Append question image (if exists)
+        const imageInput = block.querySelector(`input[name="question_image_${questionIndex}"]`);
+        if (imageInput && imageInput.files[0]) {
+            formData.append(`question_image_${questionIndex}`, imageInput.files[0]);
+        }
+    });
+
+    // Send formData to the server
+    fetch(`${API_BASE_URL}/quiz`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            alert(data.message);
+            loadCreateQuizForm();  // Reload the form on success
+        } else {
+            console.error('Quiz creation failed:', data);
+            alert('Quiz creation failed. Check the console for more details.');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
         function loadQuizzesTable() {
     fetch(`${API_BASE_URL}/all_quizzes`)
     .then(response => response.json())

@@ -29,7 +29,10 @@ def is_valid_objectid(id):
 
 def quiz_serializer(quiz):
     quiz['_id'] = str(quiz['_id'])
+    quiz['questions'] = [question for question in quiz.get('questions', [])]
+    quiz['description'] = quiz.get('description', '')
     return quiz
+
 
 @app.route('/api/user/<telegram_id>/details', methods=['GET'])
 def get_user_details(telegram_id):
@@ -246,24 +249,60 @@ def upload_image():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+
 @app.route('/api/quiz', methods=['POST'])
 def create_quiz():
-    data = request.json
-    title = data.get('title')
-    questions = data.get('questions')
-    image = data.get('image')  
-    
+    title = request.form.get('title')
+    description = request.form.get('description')
+    time_limit = request.form.get('time_limit')
+    print(title , description , time_limit)
+    if not title or not description or not time_limit:
+        return jsonify({"error": "Title, description, and time limit are required"}), 400
 
-    if not title or not questions:
-        return jsonify({"error": "Title and questions are required"}), 400
+    questions = []
+
+    # Extract questions
+    question_count = int(request.form.get('question_count', 0))
+    
+    if question_count == 0:
+        return jsonify({"error": "At least one question is required"}), 400
+
+    for index in range(1, question_count + 1):
+        question_text = request.form.get(f'question_text_{index}')
+        options = request.form.getlist(f'options_{index}')
+        correct_option = request.form.get(f'correct_option_{index}')
+        reward = request.form.get(f'reward_{index}')
+        
+        if not question_text or not options or not correct_option or not reward:
+            return jsonify({"error": "All questions must have text, options, correct option, and reward"}), 400
+        
+        # Handle question image
+        image = request.files.get(f'question_image_{index}')
+        if image:
+            filename = secure_filename(image.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            image.save(file_path)
+            question_image_url = f"static/uploads/{filename}"
+        else:
+            question_image_url = None
+
+        question = {
+            "question_text": question_text,
+            "options": options,
+            "correct_option": correct_option,
+            "reward": int(reward),
+            "question_image": question_image_url
+        }
+        questions.append(question)
 
     quiz = {
         "title": title,
+        "description": description,
+        "time_limit": time_limit,
         "questions": questions,
-        "image": image, 
         "created_at": datetime.now(timezone.utc)
     }
-    print(quiz)
+
     quizzes_collection.insert_one(quiz)
     return jsonify({"message": "Quiz created successfully", "quiz": quiz_serializer(quiz)}), 201
 
@@ -384,7 +423,6 @@ def get_user_progress(telegram_id):
         "current_question": user['current_question'],
         "coins": user['coins'],
         "answered_quizzes": user['answered_quizzes'],
-        "language" : user['language'],
     }), 200
 
 @app.route('/api/user/<telegram_id>/finish_quiz', methods=['PUT'])
