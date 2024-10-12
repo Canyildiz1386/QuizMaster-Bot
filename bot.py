@@ -3,9 +3,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Keyboar
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 
-API_BASE_URL = "http://127.0.0.1:8080/api"
+# API_BASE_URL = "http://127.0.0.1:8080/api"
 
-#API_BASE_URL = "http://128.140.49.195:8080/api"
+API_BASE_URL = "http://128.140.49.195:8080/api"
 
 BOT_NAME = "GlassButtonCanBot"
 ADMIN_TELEGRAM_ID_NUM = "6876153654"
@@ -295,8 +295,8 @@ async def support(update: Update, context):
 
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
-    #app = ApplicationBuilder().token('7693869905:AAE3mOdC_zCmXJVmmF_cAJUbgj-WQI911AE').build()
+    # app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
+    app = ApplicationBuilder().token('7693869905:AAE3mOdC_zCmXJVmmF_cAJUbgj-WQI911AE').build()
     # app = ApplicationBuilder().token('7476580536:AAFhZS6bM63fWJcSyPn0KfFNpWT5Jh5t4vE').build()
 
     app.add_handler(CommandHandler('start', start))

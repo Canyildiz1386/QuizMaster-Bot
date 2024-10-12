@@ -16,7 +16,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 client = MongoClient('mongodb://localhost:27017/')
-db = client.quiz_db
+db = client.quizzes_db
 users_collection = db.users
 quizzes_collection = db.quizzes
 
