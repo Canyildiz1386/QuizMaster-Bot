@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 
 API_BASE_URL = "http://128.140.49.195:8080/api"
 
-BOT_NAME = "GlassButtonCanBot"
+BOT_NAME = "FlopPlay_bot"
 ADMIN_TELEGRAM_ID_NUM = "6876153654"
 ADMIN_TELEGRAM_ID = "@tina_salimi_pk"
 
