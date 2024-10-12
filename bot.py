@@ -179,7 +179,7 @@ async def send_question(update, context, quiz_questions, current_question, quiz_
 async def handle_answer(update: Update, context):
     query = update.callback_query
     await query.answer()
-    
+
     telegram_id = str(query.from_user.id)
     user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
     quiz_id = context.user_data['quiz_id']
@@ -196,7 +196,10 @@ async def handle_answer(update: Update, context):
     user_answer = query.data
 
     if user_answer == question['options'][correct_option]:
-        context.user_data['correct_answers'] += 1  
+        context.user_data['correct_answers'] += 1  # Increment correct answers
+        reward = question['reward']  # Get the reward for the question
+        requests.put(f"{API_BASE_URL}/user/{telegram_id}/coins", json={"coins": reward})  # Reward the user
+
 
     new_question_number = current_question + 1
 

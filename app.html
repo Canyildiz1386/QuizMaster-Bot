@@ -320,9 +320,10 @@ table tbody tr:hover {
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" placeholder="Enter your username" required>
                 
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" placeholder="Enter your password" required>
 
+                <label for="password">Password:</label>
+                <input type="text" id="password" name="password" placeholder="Enter your password" required>
+                
                 <button type="submit">Login</button>
             </form>
             <p id="loginError" style="color:red; display:none;">Invalid credentials. Please try again.</p>
@@ -500,9 +501,10 @@ function checkLogin() {
                     <label>Question Text:</label>
                     <input type="text" name="question_text_1" placeholder="Enter question text" required>
 
-                    <label for="question_image_1">Upload Question Image:</label>
-                    <input type="file" id="question_image_1" name="question_image_1" accept="image/*">
-                    <div id="questionImagePreview_1"></div>
+<label for="question_image_1">Upload Question Image:</label>
+<input type="file" id="question_image_1" name="question_image_1" accept="image/*" onchange="showImagePreview(event, 1)">
+<div id="questionImagePreview_1"></div>
+
 
                     <label>How many options?</label>
                     <input type="number" min="1" name="option_count_1" id="option_count_1" placeholder="Enter number of options" required>
@@ -532,21 +534,21 @@ function checkLogin() {
 }
 
 
-function showImagePreview(event) {
+function showImagePreview(event, questionIndex) {
     const file = event.target.files[0];
-    const imagePreview = document.getElementById('imagePreview');
+    const imagePreview = document.getElementById(`questionImagePreview_${questionIndex}`);  // Make sure to get the correct question index
     const reader = new FileReader();
 
     reader.onload = function(e) {
-        // Set the src attribute of the img tag to the file's data URL
-        imagePreview.src = e.target.result;
-        imagePreview.style.display = 'block'; // Show the image
+        // Set the image source to the file's data URL
+        imagePreview.innerHTML = `<img src="${e.target.result}" alt="Question Image" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 1rem;" />`;
     };
 
     if (file) {
         reader.readAsDataURL(file); // Read the file as a data URL
     }
 }
+
 
         function toggleAccordion(e) {
             e.target.classList.toggle("active");
@@ -557,31 +559,31 @@ function showImagePreview(event) {
         function addQuestion() {
     questionCount++;
     const questionHTML = `
-        <button type="button" class="accordion">Question ${questionCount}</button>
-        <div class="panel">
-            <h3>Question ${questionCount}</h3>
-            <label>Question Text:</label>
-            <input type="text" name="question_text_${questionCount}" placeholder="Enter question text" required>
+    <button type="button" class="accordion">Question ${questionCount}</button>
+    <div class="panel">
+        <h3>Question ${questionCount}</h3>
+        <label>Question Text:</label>
+        <input type="text" name="question_text_${questionCount}" placeholder="Enter question text" required>
 
-            <label for="question_image_${questionCount}">Upload Question Image:</label>
-            <input type="file" id="question_image_${questionCount}" name="question_image_${questionCount}" accept="image/*">
-            <div id="questionImagePreview_${questionCount}"></div>
+        <label for="question_image_${questionCount}">Upload Question Image:</label>
+        <input type="file" id="question_image_${questionCount}" name="question_image_${questionCount}" accept="image/*" onchange="showImagePreview(event, ${questionCount})">
+        <div id="questionImagePreview_${questionCount}"></div>
 
-            <label>How many options?</label>
-            <input type="number" min="1" name="option_count_${questionCount}" id="option_count_${questionCount}" placeholder="Enter number of options" required>
+        <label>How many options?</label>
+        <input type="number" min="1" name="option_count_${questionCount}" id="option_count_${questionCount}" placeholder="Enter number of options" required>
 
-            <!-- Ensure that this div has a unique id for options -->
-            <div id="options_${questionCount}"></div>
+        <div id="options_${questionCount}"></div>
 
-            <label>Correct Option:</label>
-            <select name="correct_option_${questionCount}" required>
-                <option value="" disabled selected>Select correct option</option>
-            </select>
+        <label>Correct Option:</label>
+        <select name="correct_option_${questionCount}" required>
+            <option value="" disabled selected>Select correct option</option>
+        </select>
 
-            <label>Reward (coins):</label>
-            <input type="number" name="reward_${questionCount}" placeholder="Enter reward" min="0" required>
-        </div>
-    `;
+        <label>Reward (coins):</label>
+        <input type="number" name="reward_${questionCount}" placeholder="Enter reward" min="0" required>
+    </div>
+`;
+
     
     // Add the new question block to the questions container
     document.getElementById('questions-container').insertAdjacentHTML('beforeend', questionHTML);

@@ -16,7 +16,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 client = MongoClient('mongodb://localhost:27017/')
-db = client.quizzes_db
+db = client.quizzes
 users_collection = db.users
 quizzes_collection = db.quizzes
 
@@ -448,8 +448,12 @@ def add_coins(telegram_id):
     if 'coins' not in data:
         return jsonify({"error": "Coins are required"}), 400
     user = users_collection.find_one({"telegram_id": telegram_id})
-    new_coins = user['coins'] + data['coins']
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    new_coins = user['coins'] + data['coins']  # Add the new coins to the user's balance
     users_collection.update_one({"telegram_id": telegram_id}, {"$set": {"coins": new_coins}})
+    
     return jsonify({"message": "Coins updated", "new_coins": new_coins}), 200
 
 @app.route('/api/user/<telegram_id>/referral', methods=['POST'])
