@@ -122,6 +122,8 @@ async def quiz(update: Update, context):
     await update.message.reply_text("📚 لطفاً یک آزمون انتخاب کنید 🧠:", reply_markup=reply_markup)
 
 
+
+
 async def select_quiz(update: Update, context):
     query = update.callback_query
     quiz_id = query.data.split("_")[-1]
@@ -132,7 +134,9 @@ async def select_quiz(update: Update, context):
     if start_response.status_code != 200:
         await query.message.reply_text("❌ خطا در شروع آزمون. لطفاً دوباره امتحان کنید 😔.")
         return
-    
+
+    await query.message.delete()
+
     response = requests.get(f"{API_BASE_URL}/quiz/{quiz_id}")
     if response.status_code != 200:
         await query.message.reply_text(f"❌ خطا در بازیابی داده‌های آزمون (کد وضعیت {response.status_code}) 😢.")
@@ -146,6 +150,14 @@ async def select_quiz(update: Update, context):
         return
     
     current_question = 0
+    context.user_data['correct_answers'] = 0  
+    context.user_data['total_questions'] = len(quiz_questions)
+
+    await send_question(update, context, quiz_questions, current_question, quiz_id)
+
+
+async def send_question(update, context, quiz_questions, current_question, quiz_id):
+    telegram_id = str(update.callback_query.from_user.id)
     question = quiz_questions[current_question]
     question_text = question['question_text']
     question_image = question.get('question_image')
@@ -156,11 +168,12 @@ async def select_quiz(update: Update, context):
 
     if question_image:
         with open(question_image, 'rb') as img:
-            await query.message.reply_photo(photo=img, caption=question_text, reply_markup=reply_markup)
+            await update.callback_query.message.reply_photo(photo=img, caption=question_text, reply_markup=reply_markup)
     else:
-        await query.message.reply_text(question_text, reply_markup=reply_markup)
+        await update.callback_query.message.reply_text(question_text, reply_markup=reply_markup)
     
-    requests.put(f"{API_BASE_URL}/user/{telegram_id}/progress", json={"current_quiz": quiz_id, "current_question": current_question})
+    context.user_data['current_question'] = current_question
+    context.user_data['quiz_id'] = quiz_id
 
 
 async def handle_answer(update: Update, context):
@@ -169,46 +182,34 @@ async def handle_answer(update: Update, context):
     
     telegram_id = str(query.from_user.id)
     user_data = requests.get(f"{API_BASE_URL}/user/{telegram_id}/progress").json()
-    quiz_id = user_data['current_quiz']
-    
+    quiz_id = context.user_data['quiz_id']
+
     quiz_response = requests.get(f"{API_BASE_URL}/quiz/{quiz_id}")
     quiz = quiz_response.json()
     quiz_questions = quiz['questions']
-    current_question = user_data['current_question']
+    current_question = context.user_data['current_question']
 
-    if current_question >= len(quiz_questions):
-        await query.message.reply_text("🎉 شما آزمون را به پایان رساندید! 🏅")
-        return
+    await query.message.delete()
 
     question = quiz_questions[current_question]
     correct_option = int(str(question['correct_option']).split('_')[1]) - 1
     user_answer = query.data
+
     if user_answer == question['options'][correct_option]:
-        await query.message.reply_text("🎉 درست! 🏆")
-        requests.put(f"{API_BASE_URL}/user/{telegram_id}/coins", json={"coins": question['reward']})
-    else:
-        await query.message.reply_text(f"❌ نادرست! پاسخ صحیح: {question['options'][correct_option]} ❓")
+        context.user_data['correct_answers'] += 1  
 
     new_question_number = current_question + 1
 
     if new_question_number >= len(quiz_questions):
+        total_correct = context.user_data['correct_answers']
+        total_questions = context.user_data['total_questions']
+        percentage = (total_correct / total_questions) * 100
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/finish_quiz", json={"quiz_id": quiz_id})
-        await query.message.reply_text("🎉 شما آزمون را به پایان رساندید! 🏆")
+
+        await query.message.reply_text(f"🎉 آزمون به پایان رسید! \nدرصد پاسخ صحیح شما: {percentage:.2f}%")
     else:
         requests.put(f"{API_BASE_URL}/user/{telegram_id}/progress", json={"current_quiz": quiz_id, "current_question": new_question_number})
-
-        next_question = quiz_questions[new_question_number]
-        question_text = next_question['question_text']
-        question_image = next_question.get('question_image')
-        options = next_question['options']
-        buttons = [[InlineKeyboardButton(option, callback_data=option) for option in options]]
-        reply_markup = InlineKeyboardMarkup(buttons)
-
-        if question_image:
-            with open(question_image, 'rb') as img:
-                await query.message.reply_photo(photo=img, caption=question_text, reply_markup=reply_markup)
-        else:
-            await query.message.reply_text(question_text, reply_markup=reply_markup)
+        await send_question(update, context, quiz_questions, new_question_number, quiz_id)
 
 
 async def leaderboard(update: Update, context):
